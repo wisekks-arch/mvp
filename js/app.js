@@ -50,6 +50,15 @@ document.addEventListener('DOMContentLoaded', () => {
       stopCamera();
     }
 
+    const btnNavScan = document.getElementById('btn-nav-scan');
+    if (btnNavScan) {
+      if (tabId === 'scan') {
+        btnNavScan.classList.add('active');
+      } else {
+        btnNavScan.classList.remove('active');
+      }
+    }
+
     if (tabId === 'home') renderHomeTab();
     if (tabId === 'book') renderBookTab();
     if (tabId === 'event') renderEventTab();
@@ -68,6 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const homeScanCta = document.getElementById('home-scan-cta');
   if (homeScanCta) {
     homeScanCta.addEventListener('click', () => switchTab('scan'));
+  }
+
+  // 하단 중앙 카메라 버튼: 메인의 '물고기사진 촬영 및 AI 판별' 버튼과 100% 동일하게 작동
+  const btnNavScan = document.getElementById('btn-nav-scan');
+  if (btnNavScan) {
+    btnNavScan.addEventListener('click', () => {
+      switchTab('scan');
+    });
   }
 
   // =========================================================================

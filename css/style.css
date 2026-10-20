@@ -1365,6 +1365,7 @@ body {
 .nav-scan-highlight {
   position: relative;
   top: -12px;
+  cursor: pointer;
 }
 
 .nav-scan-btn-inner {
@@ -1379,11 +1380,21 @@ body {
   color: #030712;
   box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
   border: 3px solid var(--bg-deep);
-  transition: transform 0.2s;
+  transition: all 0.25s;
 }
 
 .nav-scan-highlight:hover .nav-scan-btn-inner {
   transform: scale(1.08);
+}
+
+.nav-scan-highlight:active .nav-scan-btn-inner {
+  transform: scale(0.95);
+}
+
+.nav-scan-highlight.active .nav-scan-btn-inner {
+  box-shadow: 0 0 28px rgba(0, 242, 254, 0.9), 0 0 12px #38bdf8;
+  border-color: #38bdf8;
+  transform: scale(1.06);
 }
 
 /* Modals */
