@@ -253,10 +253,48 @@ class EoboStorage {
     return newLog;
   }
 
+  getLogById(id) {
+    const logs = this.getLogs();
+    return logs.find(l => l.id === id) || null;
+  }
+
   deleteLog(id) {
     let logs = this.getLogs();
     logs = logs.filter(item => item.id !== id);
     this.saveLogs(logs);
+  }
+
+  addComment(logId, commentText) {
+    if (!commentText || !commentText.trim()) {
+      throw new Error('댓글 내용을 입력해주세요.');
+    }
+
+    const logs = this.getLogs();
+    const log = logs.find(l => l.id === logId);
+    if (!log) throw new Error('조과 기록을 찾을 수 없습니다.');
+
+    if (!log.comments) log.comments = [];
+    const currentUser = this.getCurrentUser() || {
+      id: 'guest',
+      nickname: '자유 앵글러',
+      avatar: '🎣',
+      level: '조사'
+    };
+
+    const newComment = {
+      id: 'cmt-' + Date.now(),
+      authorId: currentUser.id,
+      authorNickname: currentUser.nickname,
+      authorAvatar: currentUser.avatar || '🎣',
+      authorLevel: currentUser.level || '조사',
+      text: commentText.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    log.comments.push(newComment);
+    this.saveLogs(logs);
+    this.addPoints(100); // 댓글 작성 보너스 포인트 +100P
+    return newComment;
   }
 
   toggleLike(logId) {

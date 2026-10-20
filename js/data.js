@@ -363,7 +363,25 @@ const INITIAL_CATCH_LOGS = [
     hashValid: true,
     eventMatched: 'ev-west-flounder',
     rewardScore: 0.94,
-    rewardClaimed: true
+    rewardClaimed: true,
+    comments: [
+      {
+        id: 'cmt-1',
+        authorNickname: '제주 참돔러버',
+        authorAvatar: '🐠',
+        authorLevel: '타이라바 마스터',
+        text: '와 6짜 대광어 축하드립니다! 오천항 몇 번 어초에서 낚으셨나요?',
+        createdAt: '2026-10-18T09:30:00Z'
+      },
+      {
+        id: 'cmt-2',
+        authorNickname: '서해 대물사냥꾼',
+        authorAvatar: '🦈',
+        authorLevel: '프로 앵글러',
+        text: '다운샷 5인치 웜 조합이 기가 막혔네요! 손맛 최고였겠습니다 👍',
+        createdAt: '2026-10-18T10:15:00Z'
+      }
+    ]
   },
   {
     id: 'log-102',
@@ -386,7 +404,17 @@ const INITIAL_CATCH_LOGS = [
     hashValid: true,
     eventMatched: null,
     rewardScore: 0.0,
-    rewardClaimed: false
+    rewardClaimed: false,
+    comments: [
+      {
+        id: 'cmt-3',
+        authorNickname: '바다의 승부사',
+        authorAvatar: '🎣',
+        authorLevel: '프로 앵글러',
+        text: '덕적도 여밭 우럭은 빵이 남다르네요! 회 맛도 끝내주겠습니다.',
+        createdAt: '2026-10-14T18:00:00Z'
+      }
+    ]
   }
 ];
 

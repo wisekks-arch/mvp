@@ -1165,46 +1165,198 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openFishCertModal(log) {
+    // 최신 상태 동기화
+    const freshLog = window.eoboStorage.getLogById(log.id) || log;
+    const comments = freshLog.comments || [];
+
     const certHtml = `
       <div class="fish-cert-card">
         <div class="cert-top">
           <span class="cert-logo">🎣 EOBO OFFICIAL CERTIFICATE</span>
-          <span class="cert-serial">ID: ${log.id}</span>
+          <span class="cert-serial">ID: ${freshLog.id}</span>
         </div>
-        <div class="cert-photo">
-          <img src="${log.imageUrl || window.EOBO_SAFE_IMG}" alt="${log.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
+
+        <!-- 1. 고화질 큰 사진 뷰어 -->
+        <div class="cert-photo-large-wrap" title="고화질 원본 사진">
+          <img src="${freshLog.imageUrl || window.EOBO_SAFE_IMG}" alt="${freshLog.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
+          <span class="cert-photo-zoom-hint">🔍 고화질 뷰</span>
         </div>
-        <div class="cert-fish-title">${log.speciesName}</div>
+
+        <div class="cert-fish-title">${freshLog.speciesName}</div>
+
         <div class="cert-metrics">
-          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">체장</span><span class="cert-metric-num">${log.lengthCm}</span><span style="font-size: 12px; color: var(--accent-cyan);">cm</span></div>
-          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">무게</span><span class="cert-metric-num">${log.weightKg || '0.7'}</span><span style="font-size: 12px; color: var(--accent-cyan);">kg</span></div>
-          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">추정 나이</span><span class="cert-metric-num" style="font-size: 16px;">${log.estimatedAge}</span></div>
+          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">체장</span><span class="cert-metric-num">${freshLog.lengthCm}</span><span style="font-size: 12px; color: var(--accent-cyan);">cm</span></div>
+          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">무게</span><span class="cert-metric-num">${freshLog.weightKg || '0.7'}</span><span style="font-size: 12px; color: var(--accent-cyan);">kg</span></div>
+          <div><span style="font-size: 10px; color: var(--text-dim); display: block;">추정 나이</span><span class="cert-metric-num" style="font-size: 16px;">${freshLog.estimatedAge}</span></div>
         </div>
+
         <div class="cert-meta-info">
-          <div>👤 <strong>조사:</strong> ${log.authorNickname || '자유 앵글러'} (${log.authorLevel || '프로'})</div>
-          <div>📍 <strong>위치:</strong> ${log.locationName || log.region}</div>
-          <div>🪱 <strong>채비:</strong> ${log.bait || '루어 웜'}</div>
-          <div>🗓️ <strong>일시:</strong> ${log.date} ${log.time || '10:00'} · 🌊 ${log.tide || '7물'}</div>
-          <div>🤖 <strong>AI 판별 신뢰도:</strong> ${log.confidence}% (SHA-256 검증 통과)</div>
+          <div>👤 <strong>조사:</strong> ${freshLog.authorNickname || '자유 앵글러'} (${freshLog.authorLevel || '프로'})</div>
+          <div>📍 <strong>위치:</strong> ${freshLog.locationName || freshLog.region}</div>
+          <div>🪱 <strong>채비:</strong> ${freshLog.bait || '루어 웜'}</div>
+          <div>🗓️ <strong>일시:</strong> ${freshLog.date} ${freshLog.time || '10:00'} · 🌊 ${freshLog.tide || '7물'}</div>
+          <div>🤖 <strong>AI 판별 신뢰도:</strong> ${freshLog.confidence}% (SHA-256 검증 통과)</div>
+        </div>
+
+        <!-- 2. 실시간 댓글(응원톡) 섹션 -->
+        <div class="cert-comments-section">
+          <div class="comments-header">
+            <span class="comments-title">💬 앵글러 응원 댓글 <strong style="color: var(--accent-cyan);">(${comments.length})</strong></span>
+            <span style="font-size: 10px; color: #fbbf24; font-weight: 700;">작성 시 +100P 🎁</span>
+          </div>
+
+          <div id="cert-comments-list-${freshLog.id}" class="comments-list">
+            ${comments.length === 0 ? `
+              <div style="text-align: center; color: var(--text-dim); font-size: 11px; padding: 14px 0;">
+                첫 번째 축하 댓글을 남겨보세요!
+              </div>
+            ` : comments.map(c => `
+              <div class="comment-bubble-item">
+                <div class="comment-author-row">
+                  <span class="comment-author-name">${c.authorAvatar || '🎣'} ${c.authorNickname} <span style="font-size: 9px; color: var(--text-dim);">(${c.authorLevel || '조사'})</span></span>
+                  <span class="comment-time">${c.createdAt ? c.createdAt.slice(5, 16).replace('T', ' ') : '방금'}</span>
+                </div>
+                <div class="comment-text">${c.text}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="comment-input-row">
+            <input type="text" id="comment-input-${freshLog.id}" class="comment-input" placeholder="대물 축하 댓글을 남겨보세요..." onkeypress="if(event.key==='Enter') window.eoboSubmitComment('${freshLog.id}')">
+            <button class="btn-comment-submit" onclick="window.eoboSubmitComment('${freshLog.id}')">등록</button>
+          </div>
         </div>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn-primary" style="flex: 1;" onclick="window.eoboShareCert()">📸 SNS 카드 공유</button>
-        <button class="btn-secondary" style="flex: 1;" onclick="window.eoboDeleteLog('${log.id}')">🗑️ 삭제</button>
+
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button class="btn-primary" style="flex: 1;" onclick="window.eoboOpenShareModal('${freshLog.id}')">📤 SNS 카드 공유</button>
+        <button class="btn-secondary" style="flex: 1;" onclick="window.eoboDeleteLog('${freshLog.id}')">🗑️ 삭제</button>
       </div>
     `;
     openModal(certHtml);
   }
 
-  window.eoboShareCert = () => {
+  // 댓글 등록 핸들러
+  window.eoboSubmitComment = (logId) => {
+    const input = document.getElementById(`comment-input-${logId}`);
+    if (!input || !input.value.trim()) {
+      alert('댓글 내용을 입력해주세요!');
+      return;
+    }
+
+    try {
+      window.eoboStorage.addComment(logId, input.value.trim());
+      showToast('🎉 응원 댓글이 등록되었습니다! (+100P 지급 완료)');
+
+      // 모달 내용 새로고침
+      const updatedLog = window.eoboStorage.getLogById(logId);
+      if (updatedLog) {
+        openFishCertModal(updatedLog);
+      }
+      renderHomeTab();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // 다중 SNS 카드 공유 모달 (카카오톡, 인스타그램, URL 복사, 시스템 공유)
+  window.eoboOpenShareModal = (logId) => {
+    const log = window.eoboStorage.getLogById(logId);
+    if (!log) return;
+
+    const shareUrl = window.location.origin + window.location.pathname + `?certId=${log.id}`;
+    const shareText = `[어보 EOBO 공식 인증] 내가 잡은 대물 ${log.speciesName} (${log.lengthCm}cm, ${log.estimatedAge})! AI 판별 일치율 ${log.confidence}% 기록을 확인해보세요! 🎣🌊`;
+
+    const shareHtml = `
+      <div class="share-modal-card">
+        <div style="font-size: 32px; margin-bottom: 8px;">📤</div>
+        <div class="share-header-title">피싱 인증 카드 SNS 공유</div>
+        <div class="share-sub-desc">
+          <strong>${log.speciesName} (${log.lengthCm}cm)</strong><br>
+          자랑스러운 나의 대물 조과 기록을 친구들에게 공유해보세요!
+        </div>
+
+        <div class="share-options-grid">
+          <!-- 1. 카카오톡 공유 -->
+          <div class="share-btn-item share-btn-kakao" onclick="window.eoboShareKakao('${log.id}')">
+            <span class="share-btn-icon">💬</span>
+            <span class="share-btn-text">카카오톡 공유</span>
+          </div>
+
+          <!-- 2. 인스타그램 공유 -->
+          <div class="share-btn-item share-btn-insta" onclick="window.eoboShareInstagram('${log.id}')">
+            <span class="share-btn-icon">📸</span>
+            <span class="share-btn-text">인스타그램 복사</span>
+          </div>
+
+          <!-- 3. 전용 URL 링크 복사 -->
+          <div class="share-btn-item share-btn-url" onclick="window.eoboCopyUrl('${shareUrl}')">
+            <span class="share-btn-icon">🔗</span>
+            <span class="share-btn-text">인증 링크 복사</span>
+          </div>
+
+          <!-- 4. 스마트폰 간편 공유 -->
+          <div class="share-btn-item share-btn-system" onclick="window.eoboShareNative('${log.speciesName}', '${log.lengthCm}', '${shareUrl}')">
+            <span class="share-btn-icon">📲</span>
+            <span class="share-btn-text">기기 앱으로 전송</span>
+          </div>
+        </div>
+
+        <div style="background: rgba(3, 7, 18, 0.5); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11px; color: var(--text-dim); margin-bottom: 16px; word-break: break-all;">
+          ${shareUrl}
+        </div>
+
+        <button class="btn-secondary" style="width: 100%;" onclick="window.eoboOpenCertById('${log.id}')">
+          ⬅️ 피싱 인증 카드로 돌아가기
+        </button>
+      </div>
+    `;
+    openModal(shareHtml);
+  };
+
+  // 1. 카카오톡 공유
+  window.eoboShareKakao = (logId) => {
+    const log = window.eoboStorage.getLogById(logId);
+    const url = window.location.href;
+    const msg = `[어보 EOBO] ${log ? log.speciesName : '물고기'} ${log ? log.lengthCm + 'cm' : ''} 대물 손맛 성공! 나만의 피싱 인증 카드를 확인해보세요! 🎣`;
+
+    // 카카오톡 웹 인텐트 링크
+    const kakaoUrl = `https://story.kakao.com/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(msg)}`;
+    window.open(kakaoUrl, '_blank', 'width=550,height=450');
+    showToast('💬 카카오톡 공유 창을 연결했습니다.');
+  };
+
+  // 2. 인스타그램 공유 (해시태그 텍스트 클립보드 복사)
+  window.eoboShareInstagram = (logId) => {
+    const log = window.eoboStorage.getLogById(logId);
+    const instaCaption = `[어보 EOBO 피싱 인증] 🎣\n어종: ${log ? log.speciesName : '물고기'}\n체장: ${log ? log.lengthCm : 0}cm\n추정 나이: ${log ? log.estimatedAge : '성어'}\n포인트: ${log ? log.locationName : '바다'}\n\n#어보 #EOBO #피싱스타그램 #낚시스타그램 #대물 #손맛 #루어낚시 #바다낚시\n${window.location.href}`;
+
+    navigator.clipboard.writeText(instaCaption).then(() => {
+      showToast('📸 인스타그램 피드/스토리용 태그와 설명이 복사되었습니다! 인스타그램에 붙여넣어 공유하세요.');
+    }).catch(() => {
+      showToast('📸 인스타그램 캡션이 복사되었습니다.');
+    });
+  };
+
+  // 3. 전용 URL 링크 복사
+  window.eoboCopyUrl = (url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('🔗 인증 카드 전용 URL이 클립보드에 복사되었습니다!');
+    }).catch(() => {
+      showToast('링크가 복사되었습니다: ' + url);
+    });
+  };
+
+  // 4. 모바일 시스템 기본 공유
+  window.eoboShareNative = (speciesName, lengthCm, url) => {
     if (navigator.share) {
       navigator.share({
-        title: '어보(EOBO) 피싱 인증 카드',
-        text: '내가 잡은 대물을 어보 AI에서 확인해보세요!',
-        url: window.location.href
+        title: `어보(EOBO) 피싱 인증 - ${speciesName} (${lengthCm}cm)`,
+        text: `내가 잡은 대물 ${speciesName} ${lengthCm}cm! 어보 AI 도감 인증을 확인해보세요!`,
+        url: url
       }).catch(() => {});
     } else {
-      showToast('피싱 인증서가 클립보드에 복사되었습니다! (SNS 공유)');
+      window.eoboCopyUrl(url);
     }
   };
 

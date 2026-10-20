@@ -1966,3 +1966,234 @@ body {
   max-width: 80px;
 }
 
+/* ==========================================================================
+   💬 큰 사진 뷰어 & 실시간 댓글(응원) UI
+   ========================================================================== */
+.cert-photo-large-wrap {
+  width: 100%;
+  height: 230px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  position: relative;
+  background: #020617;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  margin-bottom: 12px;
+}
+
+.cert-photo-large-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.cert-photo-large-wrap:hover img {
+  transform: scale(1.04);
+}
+
+.cert-photo-zoom-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(3, 7, 18, 0.7);
+  backdrop-filter: blur(4px);
+  color: #f8fafc;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+/* Comments Section */
+.cert-comments-section {
+  margin-top: 16px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  padding-top: 14px;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.comments-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+
+.comment-bubble-item {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.comment-author-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.comment-author-name {
+  font-weight: 700;
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-time {
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.comment-text {
+  color: var(--text-main);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.comment-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-input {
+  flex: 1;
+  background: rgba(3, 7, 18, 0.8);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  color: var(--text-main);
+  font-size: 12px;
+  outline: none;
+}
+
+.comment-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.btn-comment-submit {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--primary));
+  color: #030712;
+  border: none;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s;
+}
+
+.btn-comment-submit:active {
+  transform: scale(0.95);
+}
+
+/* ==========================================================================
+   🔗 다중 SNS 카드 공유 모달 UI
+   ========================================================================== */
+.share-modal-card {
+  text-align: center;
+}
+
+.share-header-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.share-sub-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.share-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.share-btn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.share-btn-item:hover {
+  transform: translateY(-2px);
+}
+
+.share-btn-kakao {
+  background: #fee500;
+  color: #191919;
+  border: none;
+  font-weight: 800;
+}
+
+.share-btn-kakao:hover {
+  background: #fdd800;
+}
+
+.share-btn-insta {
+  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+  color: #ffffff;
+  border: none;
+  font-weight: 800;
+}
+
+.share-btn-url {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.share-btn-system {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-weight: 800;
+}
+
+.share-btn-icon {
+  font-size: 22px;
+}
+
+.share-btn-text {
+  font-size: 11px;
+}
+
+
