@@ -1,0 +1,342 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>어보 (EOBO) - AI 어종 식별 & 낚시 도감 플랫폼</title>
+  <meta name="description" content="인공지능 기반의 어종 데이터 수집과 낚시 활동 보상 시스템. 잡은 물고기를 촬영하면 어종, 서식지, 나이를 즉시 알려주고 나만의 디지털 어보를 관리합니다.">
+  <meta name="theme-color" content="#030712">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>">
+</head>
+<body>
+
+  <!-- Mobile Viewport Wrapper (PC & Mobile Optimized) -->
+  <div class="app-viewport">
+
+    <!-- Top App Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">🐟</div>
+        <span class="brand-name">EOBO</span>
+        <span class="brand-badge">MVP</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-patent-info" class="patent-badge-btn" title="특허출원 10-2025-0136776">
+          <span>📜</span>
+          <span>특허기술</span>
+        </button>
+        <button id="btn-settings" class="icon-btn" title="설정">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Content -->
+    <main class="app-content">
+
+      <!-- TAB 1: HOME (Dashboard) -->
+      <section id="tab-home" class="tab-page active">
+        <!-- User Profile Card -->
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-info">
+              <div class="profile-avatar">🎣</div>
+              <div class="profile-meta">
+                <h3 id="home-profile-name">바다의 승부사 <span style="font-size: 13px;">🌊</span></h3>
+                <span id="home-profile-level">프로 앵글러</span>
+              </div>
+            </div>
+            <div class="profile-points">
+              <span class="points-label">보상 포인트</span>
+              <span id="home-profile-points" class="points-val">75,000 P</span>
+            </div>
+          </div>
+          <div class="profile-stats">
+            <div class="stat-item">
+              <span id="home-stat-catches" class="stat-num">0 수</span>
+              <span class="stat-title">총 등록 조과</span>
+            </div>
+            <div class="stat-item">
+              <span id="home-stat-max" class="stat-num">0 cm</span>
+              <span class="stat-title">내 최대어</span>
+            </div>
+            <div class="stat-item">
+              <span id="home-stat-rate" class="stat-num">0%</span>
+              <span class="stat-title">도감 달성률</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick AI Scan CTA Banner -->
+        <div id="home-scan-cta" class="scan-cta-banner">
+          <div class="scan-cta-text">
+            <h4>물고기 사진 촬영 및 AI 판별</h4>
+            <p>어종명 · 추정 나이 · 서식지 · 금어기 즉시 확인</p>
+          </div>
+          <div class="scan-cta-icon">📸</div>
+        </div>
+
+        <!-- Fishing Events Carousel Section -->
+        <div class="section-head">
+          <h4>🏆 진행 중인 특허 챌린지</h4>
+          <span class="more-link" onclick="document.querySelector('[data-tab=event]').click()">전체보기 ➔</span>
+        </div>
+        <div id="home-event-scroll" class="event-scroll-container"></div>
+
+        <!-- Recent Catch Logs Section -->
+        <div class="section-head">
+          <h4>📋 최근 등록된 내 어보</h4>
+          <span class="more-link" onclick="document.querySelector('[data-tab=book]').click()">도감 열기 ➔</span>
+        </div>
+        <div id="home-recent-logs" class="recent-logs-list"></div>
+      </section>
+
+      <!-- TAB 2: AI SCAN (Camera & Fish Identification) -->
+      <section id="tab-scan" class="tab-page">
+        <div class="scan-container">
+          <div class="viewfinder-card">
+            <div class="reticle-corner reticle-tl"></div>
+            <div class="reticle-corner reticle-tr"></div>
+            <div class="reticle-corner reticle-bl"></div>
+            <div class="reticle-corner reticle-br"></div>
+
+            <div id="scanner-laser" class="scanner-laser"></div>
+
+            <div id="viewfinder-placeholder" class="viewfinder-placeholder">
+              <span class="icon">📷</span>
+              <p>카메라로 잡은 물고기를 비추거나<br>아래 샘플 어종을 터치해 보세요</p>
+            </div>
+
+            <video id="camera-stream" autoplay playsinline></video>
+            <img id="scan-preview-img" alt="Scan preview">
+          </div>
+
+          <div class="camera-controls-row">
+            <button id="btn-start-camera" class="btn-primary">
+              <span>📷</span> 카메라 켜기
+            </button>
+            <button id="btn-select-photo" class="btn-secondary">
+              <span>🖼️</span> 앨범 사진 선택
+            </button>
+          </div>
+          <input type="file" id="fish-file-input" accept="image/*" style="display: none;">
+
+          <button id="btn-capture-scan" class="btn-primary" style="display: none; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <span>📸</span> 지금 찰칵 & AI 어종 분석
+          </button>
+
+          <!-- Quick Sample Test Chips -->
+          <div class="sample-chips-wrap">
+            <div class="sample-chips-label">
+              <span>⚡</span> 원클릭 빠른 테스트 (대표 어종 사진 체험):
+            </div>
+            <div class="sample-chips-list">
+              <button class="sample-chip" data-species="olive_flounder">넙치 (광어)</button>
+              <button class="sample-chip" data-species="black_rockfish">조피볼락 (우럭)</button>
+              <button class="sample-chip" data-species="red_seabream">참돔</button>
+              <button class="sample-chip" data-species="black_porgy">감성돔</button>
+              <button class="sample-chip" data-species="japanese_seabass">농어</button>
+              <button class="sample-chip" data-species="largehead_hairtail">갈치</button>
+              <button class="sample-chip" data-species="largemouth_bass">배스</button>
+              <button class="sample-chip" data-species="crucian_carp">붕어</button>
+              <button class="sample-chip" data-species="pacific_cod">대구</button>
+            </div>
+          </div>
+
+          <!-- AI Identification Result Panel -->
+          <div id="ai-result-panel" class="ai-result-panel">
+            <div class="result-header">
+              <div class="result-species-info">
+                <h3 id="res-species-name">넙치 (광어) 🐟</h3>
+                <p id="res-scientific-name">Paralichthys olivaceus</p>
+              </div>
+              <div class="confidence-gauge-box">
+                <span id="res-confidence-num" class="confidence-num">96.8%</span>
+                <span class="confidence-label">AI 일치율</span>
+              </div>
+            </div>
+
+            <!-- Patent Integrity Stamp -->
+            <div class="patent-stamp">
+              <span>🛡️ 특허 [0016] 위조방지 검증 통과</span>
+              <span id="res-stamp-hash" class="stamp-hash">SHA-256: e8f2...</span>
+            </div>
+
+            <!-- Prohibited Size Warning -->
+            <div id="res-warning-banner" class="warning-banner" style="display: none;"></div>
+
+            <!-- Metric Grid -->
+            <div class="metric-grid">
+              <div class="metric-box">
+                <span class="label">계측 체장 (길이)</span>
+                <span id="res-length-val" class="val val-highlight">62.5 cm</span>
+              </div>
+              <div class="metric-box">
+                <span class="label">국립수산원 기준 추정 나이</span>
+                <span id="res-age-val" class="val val-highlight">4년생</span>
+              </div>
+              <div class="metric-box">
+                <span class="label">주요 서식지</span>
+                <span id="res-habitat-val" class="val" style="font-size: 11px;">전 연안 모래/펄</span>
+              </div>
+              <div class="metric-box">
+                <span class="label">서식 수심대</span>
+                <span id="res-depth-val" class="val" style="font-size: 11px;">수심 10 ~ 100m</span>
+              </div>
+            </div>
+
+            <!-- Length Fine Tuning Slider -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
+                <span>📏 체장(길이) 미세 조절</span>
+                <span>슬라이더로 나이 자동 재계산</span>
+              </div>
+              <input type="range" id="res-length-slider" min="10" max="100" step="0.5" value="50" style="width: 100%; accent-color: var(--accent-cyan);">
+            </div>
+
+            <!-- Softmax Probability Candidates -->
+            <div class="candidates-wrap">
+              <div class="candidates-title">🤖 딥러닝 어종별 판별 확률 순위:</div>
+              <div id="res-candidates-list"></div>
+            </div>
+
+            <!-- Cooking tip -->
+            <div style="background: rgba(3, 7, 18, 0.4); padding: 8px 10px; border-radius: var(--radius-sm); font-size: 11px; margin-bottom: 14px;">
+              <span style="color: var(--accent-amber); font-weight: 700;">🍽️ 추천 조리법: </span>
+              <span id="res-cooking-val" style="color: var(--text-muted);">회, 매운탕, 미역국</span>
+            </div>
+
+            <!-- Action Button -->
+            <button id="btn-register-log" class="action-register-btn">
+              <span>📥</span> 내 어보 도감에 등록하기 (+1,000P)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: BOOK (Catch Logs & Encyclopedia) -->
+      <section id="tab-book" class="tab-page">
+        <div class="collection-tabs-row">
+          <button id="subtab-btn-logs" class="sub-tab-btn active">내 조과 기록</button>
+          <button id="subtab-btn-all" class="sub-tab-btn">50종 마스터 도감</button>
+        </div>
+
+        <div id="book-logs-container" class="recent-logs-list" style="display: flex;"></div>
+        <div id="book-encyclopedia-container" class="fish-grid" style="display: none;"></div>
+      </section>
+
+      <!-- TAB 4: EVENT (Patent Reward & Challenges) -->
+      <section id="tab-event" class="tab-page">
+        <div class="section-head">
+          <h4>🏆 지자체 & 스폰서 낚시 챌린지</h4>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+          광고주 및 해양수산 관련 기관이 주최하는 어종 조사 이벤트입니다. 인공지능이 검증한 조과 데이터에 따라 포인트 및 현물 보상을 지급합니다.
+        </p>
+
+        <div id="event-list-container"></div>
+      </section>
+
+      <!-- TAB 5: MAP & ECOLOGY (Statistics & Bio Monitoring) -->
+      <section id="tab-map" class="tab-page">
+        <div class="section-head">
+          <h4>🗺️ 전국 연안 어종 생태 지도</h4>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+          특허 [0078]에 따라 수집된 전국 낚시인들의 빅데이터 기반 실시간 어류 분포 현황입니다.
+        </p>
+
+        <div class="map-visual-card">
+          <svg class="korea-map-svg" viewBox="0 0 300 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M120 40 L160 50 L190 90 L210 140 L195 210 L160 270 L110 270 L80 230 L70 170 L95 100 Z" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <text x="135" y="160" fill="#64748b" font-size="12" font-weight="700">한반도</text>
+          </svg>
+
+          <div class="map-pin" style="top: 38%; left: 24%;" title="서해 (보령/태안/인천)" onclick="alert('📍 서해안 주요 출현: 넙치(광어), 조피볼락(우럭), 농어, 주꾸미')">
+            <div class="map-pin-pulse"></div>
+            <div class="pin-circle" style="background: #38bdf8;"></div>
+            <span style="position: absolute; top: 16px; left: -10px; font-size: 10px; color: #38bdf8; font-weight: 700; white-space: nowrap;">서해 (넙치/우럭)</span>
+          </div>
+
+          <div class="map-pin" style="top: 72%; left: 52%;" title="남해 (여수/통영/거제)" onclick="alert('📍 남해안 주요 출현: 감성돔, 참돔, 갈치, 볼락')">
+            <div class="map-pin-pulse" style="animation-delay: 0.5s;"></div>
+            <div class="pin-circle" style="background: #10b981;"></div>
+            <span style="position: absolute; top: 16px; left: -10px; font-size: 10px; color: #10b981; font-weight: 700; white-space: nowrap;">남해 (감성돔/참돔)</span>
+          </div>
+
+          <div class="map-pin" style="top: 35%; left: 74%;" title="동해 (강릉/속초/포항)" onclick="alert('📍 동해안 주요 출현: 대구, 방어, 임연수어, 도루묵')">
+            <div class="map-pin-pulse" style="animation-delay: 1s;"></div>
+            <div class="pin-circle" style="background: #8b5cf6;"></div>
+            <span style="position: absolute; top: 16px; left: -10px; font-size: 10px; color: #8b5cf6; font-weight: 700; white-space: nowrap;">동해 (대구/방어)</span>
+          </div>
+
+          <div class="map-pin" style="top: 86%; left: 32%;" title="제주도" onclick="alert('📍 제주 해역 주요 출현: 참돔, 벵에돔, 무늬오징어, 은갈치')">
+            <div class="map-pin-pulse" style="animation-delay: 1.5s;"></div>
+            <div class="pin-circle" style="background: #f59e0b;"></div>
+            <span style="position: absolute; top: 16px; left: -10px; font-size: 10px; color: #f59e0b; font-weight: 700; white-space: nowrap;">제주 (대물/갈치)</span>
+          </div>
+        </div>
+
+        <div id="map-region-summary" style="margin-bottom: 20px;"></div>
+
+        <div class="metric-box" style="margin-bottom: 14px;">
+          <span class="label">국가 수산자원 생태 모니터링 기여도</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <span class="val" style="color: #34d399;">총 2,490건 데이터 기여</span>
+            <span style="font-size: 11px; color: var(--accent-cyan); font-weight: 700;">상위 5%</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="app-nav">
+      <button class="nav-item active" data-tab="home">
+        <span class="nav-icon">🏠</span>
+        <span>홈</span>
+      </button>
+
+      <button class="nav-item" data-tab="book">
+        <span class="nav-icon">📖</span>
+        <span>어보도감</span>
+      </button>
+
+      <div class="nav-scan-highlight" data-tab="scan" onclick="document.querySelector('[data-tab=scan]').click()">
+        <div class="nav-scan-btn-inner">
+          <span>📷</span>
+        </div>
+      </div>
+      <button class="nav-item" data-tab="scan" style="display: none;"></button>
+
+      <button class="nav-item" data-tab="event">
+        <span class="nav-icon">🏆</span>
+        <span>챌린지</span>
+      </button>
+
+      <button class="nav-item" data-tab="map">
+        <span class="nav-icon">🗺️</span>
+        <span>생태지도</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Shared Modal Popup Container -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-content-card">
+      <button id="modal-close-btn" class="modal-close-btn">✕</button>
+      <div id="modal-body-container"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-msg" class="toast-msg"></div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/ai-engine.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
