@@ -2,7 +2,7 @@
  * 어보 (EOBO) MVP - 도감 & 조과 데이터 영구 보관소 (Storage Manager)
  * - 다중 회원가입 / 로그인 / 세션 관리
  * - 사용자별 조과 등록 및 전국 대물 자랑 피드 관리
- * - 좋아요(대물 축하 응원) 기능
+ * - 이미지 용량 초과 방지 및 안전 저장 메커니즘 탑재
  */
 
 class EoboStorage {
@@ -14,7 +14,7 @@ class EoboStorage {
   }
 
   init() {
-    // 1. 기본 회원 목록 초기화
+    // 1. 기본 회원 목록
     if (!localStorage.getItem(this.usersKey)) {
       const defaultUsers = [
         {
@@ -45,13 +45,13 @@ class EoboStorage {
       localStorage.setItem(this.usersKey, JSON.stringify(defaultUsers));
     }
 
-    // 2. 현재 로그인 사용자 세션 (기본은 첫 번째 사용자)
+    // 2. 현재 로그인 사용자 세션
     if (!localStorage.getItem(this.currentUserKey)) {
       const users = this.getUsers();
       localStorage.setItem(this.currentUserKey, JSON.stringify(users[0]));
     }
 
-    // 3. 초기 조과 피드 데이터
+    // 3. 초기 조과 피드 데이터 (실물 사진 적용)
     if (!localStorage.getItem(this.storageKey)) {
       const currentUser = this.getCurrentUser();
       const sampleLogs = INITIAL_CATCH_LOGS.map(log => ({
@@ -64,11 +64,10 @@ class EoboStorage {
         likesCount: log.speciesId === 'olive_flounder' ? 24 : 15,
         likedUsers: []
       }));
-      localStorage.setItem(this.storageKey, JSON.stringify(sampleLogs));
+      this.saveLogs(sampleLogs);
     }
   }
 
-  // --- 회원 관리 (User Authentication) ---
   getUsers() {
     try {
       const data = localStorage.getItem(this.usersKey);
@@ -117,7 +116,7 @@ class EoboStorage {
       region: region || '서해',
       genre: genre || '루어낚시',
       avatar: avatar || '🎣',
-      points: 10000, // 신규 가입 축하 포인트
+      points: 10000,
       badges: ['신규 앵글러']
     };
 
@@ -147,7 +146,6 @@ class EoboStorage {
     user.points = (user.points || 0) + amount;
     this.setCurrentUser(user);
 
-    // 전체 회원 목록에서도 업데이트
     const users = this.getUsers();
     const idx = users.findIndex(u => u.id === user.id);
     if (idx !== -1) {
@@ -157,18 +155,32 @@ class EoboStorage {
     return user.points;
   }
 
-  // --- 조과 데이터 & 피드 관리 ---
   getLogs() {
     try {
       const data = localStorage.getItem(this.storageKey);
       return data ? JSON.parse(data) : [];
     } catch (e) {
+      console.error('Failed to load logs:', e);
       return [];
     }
   }
 
+  /**
+   * 저장 용량 초과(QuotaExceededError) 방지 안전 저장 로직
+   */
   saveLogs(logs) {
-    localStorage.setItem(this.storageKey, JSON.stringify(logs));
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(logs));
+    } catch (e) {
+      console.warn('LocalStorage 저장 용량 초과 감지. 오래된 로그 정리 후 재시도합니다:', e);
+      // 가장 오래된 기록부터 최대 15개까지만 유지하여 용량 확보
+      const trimmedLogs = logs.slice(0, 15);
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(trimmedLogs));
+      } catch (err2) {
+        console.error('저장 실패:', err2);
+      }
+    }
   }
 
   addLog(logData) {
@@ -193,7 +205,7 @@ class EoboStorage {
       ...logData
     };
 
-    logs.unshift(newLog); // 최신 조과가 항상 가장 맨 앞에 노출
+    logs.unshift(newLog); // 최신 조과가 항상 맨 앞
     this.saveLogs(logs);
 
     return newLog;
@@ -234,7 +246,6 @@ class EoboStorage {
   getStatistics() {
     const logs = this.getLogs();
     const currentUser = this.getCurrentUser();
-    // 현재 사용자의 조과만 필터링하거나 전체 조과 통계 산출
     const myLogs = currentUser ? logs.filter(l => l.userId === currentUser.id) : logs;
 
     let maxFish = null;

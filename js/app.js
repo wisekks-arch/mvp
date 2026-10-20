@@ -294,8 +294,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 이미지 리사이징 & 자동 압축 유틸리티 (LocalStorage 5MB 한도 보호 및 모바일 고화질 최적화)
+  function compressImage(dataUrl, maxWidth = 800, maxHeight = 800, quality = 0.72) {
+    return new Promise((resolve) => {
+      if (!dataUrl || !dataUrl.startsWith('data:image')) {
+        return resolve(dataUrl);
+      }
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = () => {
+        resolve(dataUrl);
+      };
+      img.src = dataUrl;
+    });
+  }
+
   if (btnSelectPhoto && fileInput) {
     btnSelectPhoto.addEventListener('click', () => {
+      fileInput.value = '';
       fileInput.click();
     });
 
@@ -303,12 +340,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const file = e.target.files[0];
       if (!file) return;
 
+      showToast('사진을 불러와 최적화 압축 중입니다...');
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         stopCamera();
-        const dataUrl = event.target.result;
-        showPreviewImage(dataUrl);
-        runScanPipeline(dataUrl, null);
+        const rawDataUrl = event.target.result;
+        // 고해상도 원본을 800px / JPEG 72% 품질로 경량화하여 LocalStorage 용량 초과 방지
+        const optimizedDataUrl = await compressImage(rawDataUrl, 800, 800, 0.72);
+        showPreviewImage(optimizedDataUrl);
+        runScanPipeline(optimizedDataUrl, null);
       };
       reader.readAsDataURL(file);
     });
@@ -347,14 +387,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (btnCapture) {
-    btnCapture.addEventListener('click', () => {
+    btnCapture.addEventListener('click', async () => {
       if (!cameraVideo || cameraVideo.style.display === 'none') return;
+      const vWidth = cameraVideo.videoWidth || 640;
+      const vHeight = cameraVideo.videoHeight || 480;
+
+      // 최대 800px로 리사이징
+      let targetW = vWidth;
+      let targetH = vHeight;
+      if (targetW > 800 || targetH > 800) {
+        if (targetW > targetH) {
+          targetH = Math.round((targetH * 800) / targetW);
+          targetW = 800;
+        } else {
+          targetW = Math.round((targetW * 800) / targetH);
+          targetH = 800;
+        }
+      }
+
       const canvas = document.createElement('canvas');
-      canvas.width = cameraVideo.videoWidth || 640;
-      canvas.height = cameraVideo.videoHeight || 480;
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg');
+      ctx.drawImage(cameraVideo, 0, 0, targetW, targetH);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
 
       stopCamera();
       showPreviewImage(dataUrl);
@@ -472,45 +528,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRegisterLog = document.getElementById('btn-register-log');
   if (btnRegisterLog) {
     btnRegisterLog.addEventListener('click', () => {
-      if (!state.currentScanResult) return;
+      if (!state.currentScanResult || !state.currentScanResult.fish) {
+        showToast('⚠️ 먼저 물고기 사진을 촬영하거나 샘플 어종을 스캔해주세요!');
+        return;
+      }
       const res = state.currentScanResult;
       const fish = res.fish;
 
-      const pointName = document.getElementById('input-point-name').value.trim() || res.metadata.locationName;
-      const baitName = document.getElementById('input-bait-name').value.trim() || '웜 루어 채비';
-      const captionText = document.getElementById('input-caption').value.trim() || `${fish.name} ${res.lengthCm}cm 짜릿한 손맛 보고 갑니다!`;
+      try {
+        const pointInput = document.getElementById('input-point-name');
+        const baitInput = document.getElementById('input-bait-name');
+        const captionInput = document.getElementById('input-caption');
 
-      const newCatchLog = {
-        speciesId: fish.id,
-        speciesName: fish.name,
-        scientificName: fish.scientificName,
-        lengthCm: res.lengthCm,
-        weightKg: res.weightKg || +((res.lengthCm * res.lengthCm * res.lengthCm * 0.000012).toFixed(2)),
-        estimatedAge: res.estimatedAge,
-        date: res.metadata.date,
-        time: res.metadata.time,
-        region: res.metadata.region,
-        locationName: pointName,
-        latitude: res.metadata.latitude,
-        longitude: res.metadata.longitude,
-        tide: res.metadata.tide,
-        weather: res.metadata.weather,
-        bait: baitName,
-        caption: captionText,
-        imageUrl: res.capturedImage || fish.imageUrl,
-        confidence: res.confidence,
-        hashValid: true,
-        hash: res.hash
-      };
+        const pointName = (pointInput && pointInput.value.trim()) ? pointInput.value.trim() : (res.metadata?.locationName || '전국 연안 포인트');
+        const baitName = (baitInput && baitInput.value.trim()) ? baitInput.value.trim() : '웜 루어 채비';
+        const captionText = (captionInput && captionInput.value.trim()) ? captionInput.value.trim() : `${fish.name} ${res.lengthCm}cm 짜릿한 손맛 보고 갑니다!`;
 
-      window.eoboStorage.addLog(newCatchLog);
-      window.eoboStorage.addPoints(1000);
+        const newCatchLog = {
+          speciesId: fish.id,
+          speciesName: fish.name,
+          scientificName: fish.scientificName,
+          lengthCm: res.lengthCm,
+          weightKg: res.weightKg || +((res.lengthCm * res.lengthCm * res.lengthCm * 0.000012).toFixed(2)),
+          estimatedAge: res.estimatedAge,
+          date: res.metadata?.date || new Date().toISOString().split('T')[0],
+          time: res.metadata?.time || '14:30',
+          region: res.metadata?.region || '서해',
+          locationName: pointName,
+          latitude: res.metadata?.latitude || 36.35,
+          longitude: res.metadata?.longitude || 126.51,
+          tide: res.metadata?.tide || '7물',
+          weather: res.metadata?.weather || '맑음',
+          bait: baitName,
+          caption: captionText,
+          imageUrl: res.capturedImage || fish.imageUrl,
+          confidence: res.confidence || 95.0,
+          hashValid: true,
+          hash: res.hash || 'SECURE_HASH_STAMP'
+        };
 
-      showToast(`🎉 ${fish.name} (${res.lengthCm}cm) 메인 자랑 피드에 등록되었습니다! (+1,000P)`);
+        const added = window.eoboStorage.addLog(newCatchLog);
+        window.eoboStorage.addPoints(1000);
 
-      setTimeout(() => {
-        switchTab('home');
-      }, 800);
+        showToast(`🎉 ${fish.name} (${res.lengthCm}cm) 메인 자랑 피드에 등록되었습니다! (+1,000P)`);
+
+        // 즉시 홈 탭 데이터 갱신 후 화면 전환
+        renderHomeTab();
+        setTimeout(() => {
+          switchTab('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 500);
+      } catch (err) {
+        console.error('등록 실패:', err);
+        alert('조과 등록 중 오류가 발생했습니다: ' + err.message);
+      }
     });
   }
 
