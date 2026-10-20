@@ -572,18 +572,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showToast(`🎉 ${fish.name} (${res.lengthCm}cm) 메인 자랑 피드에 등록되었습니다! (+1,000P)`);
 
-        // 즉시 홈 탭 데이터 갱신 후 화면 전환
+        // 즉시 홈 탭 데이터 갱신 후 신규 갤러리 코너로 부드럽게 화면 이동
         renderHomeTab();
         setTimeout(() => {
           switchTab('home');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 500);
+          const newSection = document.getElementById('home-new-arrivals-section');
+          if (newSection) {
+            newSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 400);
       } catch (err) {
         console.error('등록 실패:', err);
         alert('조과 등록 중 오류가 발생했습니다: ' + err.message);
       }
     });
   }
+
+  // 안전한 기본 Fallback 물고기 이미지 (네트워크 오류 시에도 100% 렌더링 보장)
+  window.EOBO_SAFE_IMG = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%230f172a'/%3E%3Ctext x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48'%3E🐟%3C/text%3E%3Ctext x='50%25' y='68%25' dominant-baseline='middle' text-anchor='middle' fill='%2338bdf8' font-size='14' font-family='sans-serif'%3E어보 피싱 조과%3C/text%3E%3C/svg%3E";
 
   // =========================================================================
   // 4. Home Tab Rendering & Realtime Pride Feed (자랑 피드)
@@ -605,7 +613,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('home-stat-max').innerText = stats.maxFish ? `${stats.maxFish.lengthCm}cm` : '0cm';
     document.getElementById('home-stat-rate').innerText = `${stats.completionRate}%`;
 
-    // 실시간 전국 대물 자랑 피드
+    // ✨ 1. 방금 등록된 신규 어종 사진 (실시간 라이브 갤러리)
+    renderNewArrivalsGallery(logs);
+
+    // 🔥 2. 실시간 전국 대물 자랑 피드
     renderPrideFeed(logs);
 
     // 이벤트 횡스크롤
@@ -630,6 +641,42 @@ document.addEventListener('DOMContentLoaded', () => {
         eventContainer.appendChild(card);
       });
     }
+  }
+
+  // ✨ 방금 등록된 신규 어종 사진 (실시간 가로 슬라이드 갤러리)
+  function renderNewArrivalsGallery(logs) {
+    const container = document.getElementById('home-new-arrivals-scroll');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (!logs || logs.length === 0) {
+      container.innerHTML = '<div style="color: var(--text-dim); font-size: 11px; padding: 12px;">등록된 신규 조과가 없습니다. 첫 대물을 등록해보세요!</div>';
+      return;
+    }
+
+    // 최신 등록 순으로 상위 10개 표시
+    const recentLogs = logs.slice(0, 10);
+    recentLogs.forEach(log => {
+      const card = document.createElement('div');
+      card.className = 'new-arrival-card';
+      card.onclick = () => window.eoboOpenCertById(log.id);
+
+      card.innerHTML = `
+        <div class="new-arrival-imgbox">
+          <img src="${log.imageUrl || window.EOBO_SAFE_IMG}" alt="${log.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
+          <span class="new-arrival-tag">✨ 신규</span>
+          <span class="new-arrival-size">${log.lengthCm}cm</span>
+        </div>
+        <div class="new-arrival-info">
+          <div class="new-arrival-name">${log.speciesName}</div>
+          <div class="new-arrival-meta">
+            <span class="new-arrival-author">${log.authorNickname || '자유 앵글러'}</span>
+            <span>${(log.date || '').slice(5) || '오늘'}</span>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
   }
 
   function renderPrideFeed(logs) {
@@ -665,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="feed-photo-wrap" onclick="window.eoboOpenCertById('${log.id}')">
-          <img src="${log.imageUrl}" alt="${log.speciesName}" onerror="this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80'">
+          <img src="${log.imageUrl || window.EOBO_SAFE_IMG}" alt="${log.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
           <div class="feed-photo-overlay">
             <span class="feed-species-tag">${log.speciesName} (${log.estimatedAge})</span>
             <span class="feed-size-badge">${log.lengthCm} cm</span>
@@ -755,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
           item.className = 'log-item-card';
           item.innerHTML = `
             <div class="log-img-box">
-              <img src="${log.imageUrl}" alt="${log.speciesName}">
+              <img src="${log.imageUrl || window.EOBO_SAFE_IMG}" alt="${log.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
             </div>
             <div class="log-content">
               <div class="log-top-row">
@@ -922,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="cert-serial">ID: ${log.id}</span>
         </div>
         <div class="cert-photo">
-          <img src="${log.imageUrl}" alt="${log.speciesName}">
+          <img src="${log.imageUrl || window.EOBO_SAFE_IMG}" alt="${log.speciesName}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
         </div>
         <div class="cert-fish-title">${log.speciesName}</div>
         <div class="cert-metrics">

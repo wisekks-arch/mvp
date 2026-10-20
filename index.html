@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -6,6 +6,7 @@
   <title>어보 (EOBO) - AI 어종 식별 & 낚시 도감 플랫폼</title>
   <meta name="description" content="인공지능 기반의 어종 데이터 수집과 낚시 활동 보상 시스템. 잡은 물고기를 촬영하면 어종, 서식지, 나이를 즉시 알려주고 나만의 디지털 어보를 관리합니다.">
   <meta name="theme-color" content="#030712">
+  <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>">
@@ -83,9 +84,23 @@
         </div>
 
         <!-- =================================================================
+             ✨ 방금 등록된 신규 조과 사진 (실시간 라이브 갤러리 코너)
+             ================================================================= -->
+        <div id="home-new-arrivals-section" class="section-head" style="margin-top: 18px;">
+          <h4>✨ 방금 등록된 신규 어종 사진</h4>
+          <span class="live-pulse-badge">🔴 LIVE 실시간</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-dim); margin: -6px 0 10px 0;">
+          어떤 회원이든 신규로 등록한 최신 조과 사진을 가로 슬라이드로 바로 확인하세요!
+        </p>
+        <div id="home-new-arrivals-scroll" class="new-arrivals-scroll-container">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- =================================================================
              🔥 실시간 전국 앵글러 대물 자랑 피드 (최신 등록 사진 전면 노출)
              ================================================================= -->
-        <div class="section-head">
+        <div class="section-head" style="margin-top: 20px;">
           <h4>🔥 실시간 전국 대물 자랑 피드</h4>
           <span class="more-link" onclick="document.querySelector('[data-tab=scan]').click()">+ 나도 자랑하기</span>
         </div>

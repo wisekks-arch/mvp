@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 어보 (EOBO) MVP - 도감 & 조과 데이터 영구 보관소 (Storage Manager)
  * - 다중 회원가입 / 로그인 / 세션 관리
  * - 사용자별 조과 등록 및 전국 대물 자랑 피드 관리
@@ -10,6 +10,8 @@ class EoboStorage {
     this.storageKey = 'eobo_catch_logs';
     this.usersKey = 'eobo_users_list';
     this.currentUserKey = 'eobo_current_user';
+    this.versionKey = 'eobo_storage_version';
+    this.CURRENT_VERSION = 2;
     this.init();
   }
 
@@ -51,10 +53,21 @@ class EoboStorage {
       localStorage.setItem(this.currentUserKey, JSON.stringify(users[0]));
     }
 
-    // 3. 초기 조과 피드 데이터 (실물 사진 적용)
-    if (!localStorage.getItem(this.storageKey)) {
+    // 3. 조과 피드 데이터 버전 마이그레이션 (실물 사진 영구 유지 보장)
+    const storedVersion = parseInt(localStorage.getItem(this.versionKey) || '0', 10);
+    const existingLogsData = localStorage.getItem(this.storageKey);
+
+    if (!existingLogsData || storedVersion < this.CURRENT_VERSION) {
       const currentUser = this.getCurrentUser();
-      const sampleLogs = INITIAL_CATCH_LOGS.map(log => ({
+      let currentLogs = [];
+      try {
+        currentLogs = existingLogsData ? JSON.parse(existingLogsData) : [];
+      } catch (e) {
+        currentLogs = [];
+      }
+
+      // 기본 샘플 데이터 준비
+      const defaultLogs = (typeof INITIAL_CATCH_LOGS !== 'undefined' ? INITIAL_CATCH_LOGS : []).map(log => ({
         ...log,
         userId: currentUser ? currentUser.id : 'user_pro_angler',
         authorNickname: currentUser ? currentUser.nickname : '바다의 승부사',
@@ -62,9 +75,30 @@ class EoboStorage {
         authorLevel: currentUser ? currentUser.level : '프로 앵글러',
         caption: log.speciesId === 'olive_flounder' ? '오천항 앞바다에서 가을 대광어 손맛 제대로 봤습니다! 미터급 가자!' : '덕적도 여밭 침선 우럭 낚시 대성공!',
         likesCount: log.speciesId === 'olive_flounder' ? 24 : 15,
-        likedUsers: []
+        likedUsers: [],
+        createdAt: log.createdAt || new Date(Date.now() - 3600000).toISOString()
       }));
-      this.saveLogs(sampleLogs);
+
+      if (currentLogs.length === 0) {
+        this.saveLogs(defaultLogs);
+      } else {
+        // 기존 로그가 있는 경우, 바다의 승부사 기본 로그(log-101, log-102)의 이미지 URL을 최신 실물 사진으로 갱신
+        const updated = currentLogs.map(l => {
+          const matchDefault = defaultLogs.find(d => d.id === l.id);
+          if (matchDefault) {
+            return {
+              ...l,
+              imageUrl: matchDefault.imageUrl,
+              authorNickname: l.authorNickname || '바다의 승부사',
+              authorAvatar: l.authorAvatar || '🎣'
+            };
+          }
+          return l;
+        });
+        this.saveLogs(updated);
+      }
+
+      localStorage.setItem(this.versionKey, this.CURRENT_VERSION.toString());
     }
   }
 
@@ -158,7 +192,15 @@ class EoboStorage {
   getLogs() {
     try {
       const data = localStorage.getItem(this.storageKey);
-      return data ? JSON.parse(data) : [];
+      const logs = data ? JSON.parse(data) : [];
+      return logs.map(log => {
+        // 이미지가 누락되었거나 비어있을 경우 어종 데이터베이스의 공식 실물 사진으로 자동 보완
+        if (!log.imageUrl && typeof FISH_DATABASE !== 'undefined') {
+          const fish = FISH_DATABASE.find(f => f.id === log.speciesId);
+          if (fish) log.imageUrl = fish.imageUrl;
+        }
+        return log;
+      });
     } catch (e) {
       console.error('Failed to load logs:', e);
       return [];
