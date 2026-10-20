@@ -938,8 +938,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // =========================================================================
-  // 7. Map & Ecology Tab
+  // 7. Map & Ecology Tab (전국 27대 어종 생태 명포인트 인터랙티브 시스템)
   // =========================================================================
+  let selectedMapPointId = 'pt-w-5'; // 기본 선택: 보령 오천항
+
   function renderMapTab() {
     const stats = window.eoboStorage.getStatistics();
     const regionSummary = document.getElementById('map-region-summary');
@@ -953,7 +955,191 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     }
+
+    // 권역 필터 칩 이벤트 바인딩
+    const filterBtns = document.querySelectorAll('.map-filter-btn');
+    filterBtns.forEach(btn => {
+      btn.onclick = () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.currentMapRegion = btn.dataset.region;
+        renderMapPointsAndPins();
+      };
+    });
+
+    renderMapPointsAndPins();
   }
+
+  function renderMapPointsAndPins() {
+    if (typeof FISHING_POINTS_DATA === 'undefined') return;
+
+    const currentRegion = state.currentMapRegion || 'all';
+    const filtered = currentRegion === 'all' 
+      ? FISHING_POINTS_DATA 
+      : FISHING_POINTS_DATA.filter(p => p.region === currentRegion);
+
+    // 1. 포인트 개수 배지 업데이트
+    const countBadge = document.getElementById('map-points-count-badge');
+    if (countBadge) countBadge.innerText = `${filtered.length}개소`;
+
+    // 2. 지도 위 핀 렌더링
+    const pinsContainer = document.getElementById('map-pins-container');
+    if (pinsContainer) {
+      pinsContainer.innerHTML = '';
+      filtered.forEach(p => {
+        const pin = document.createElement('div');
+        const regionClass = p.region === '서해' ? 'pin-west' 
+          : p.region === '남해' ? 'pin-south' 
+          : p.region === '동해' ? 'pin-east' 
+          : p.region === '제주' ? 'pin-jeju' : 'pin-fresh';
+
+        pin.className = `eco-map-pin ${regionClass} ${p.id === selectedMapPointId ? 'active' : ''}`;
+        pin.style.left = `${p.x}%`;
+        pin.style.top = `${p.y}%`;
+        pin.title = `${p.name} (${p.primaryFish.join(', ')})`;
+
+        pin.innerHTML = `
+          <div class="eco-pin-core">
+            <div class="eco-pin-pulse"></div>
+          </div>
+          <div class="eco-pin-label">${p.name.split(' ')[0]}</div>
+        `;
+
+        pin.onclick = (e) => {
+          e.stopPropagation();
+          selectMapPoint(p);
+        };
+
+        pinsContainer.appendChild(pin);
+      });
+    }
+
+    // 3. 하단 27대 포인트 카드 리스트 렌더링
+    const listContainer = document.getElementById('map-points-list');
+    if (listContainer) {
+      listContainer.innerHTML = '';
+      filtered.forEach(p => {
+        const card = document.createElement('div');
+        card.className = `point-item-card ${p.id === selectedMapPointId ? 'active' : ''}`;
+
+        card.innerHTML = `
+          <div class="point-item-thumb">
+            <img src="${p.imageUrl || window.EOBO_SAFE_IMG}" alt="${p.name}" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
+          </div>
+          <div class="point-item-content">
+            <div class="point-item-top">
+              <span class="point-item-name">${p.name}</span>
+              <span class="point-badge ${getRegionBadgeClass(p.region)}">${p.region}</span>
+            </div>
+            <div class="point-item-fish">🐟 ${p.primaryFish.join(' · ')}</div>
+            <div class="point-item-meta">
+              <span>수심 ${p.depth}</span> · 
+              <span>${p.waterTemp}</span> · 
+              <span style="color: #fbbf24;">★${p.activityStar}</span>
+            </div>
+          </div>
+        `;
+
+        card.onclick = () => {
+          selectMapPoint(p);
+          const detailCard = document.getElementById('map-point-detail-card');
+          if (detailCard) detailCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        };
+
+        listContainer.appendChild(card);
+      });
+    }
+
+    // 기본 선택된 포인트 카드 표시
+    const activePoint = FISHING_POINTS_DATA.find(p => p.id === selectedMapPointId) || filtered[0];
+    if (activePoint) {
+      showPointDetailCard(activePoint);
+    }
+  }
+
+  function getRegionBadgeClass(region) {
+    if (region === '서해') return 'badge-west';
+    if (region === '남해') return 'badge-south';
+    if (region === '동해') return 'badge-east';
+    if (region === '제주') return 'badge-jeju';
+    return 'badge-fresh';
+  }
+
+  function selectMapPoint(p) {
+    selectedMapPointId = p.id;
+
+    // 핀 active 토글
+    document.querySelectorAll('.eco-map-pin').forEach(pin => pin.classList.remove('active'));
+    const targetPin = Array.from(document.querySelectorAll('.eco-map-pin')).find(pin => pin.title.startsWith(p.name));
+    if (targetPin) targetPin.classList.add('active');
+
+    showPointDetailCard(p);
+  }
+
+  function showPointDetailCard(p) {
+    const card = document.getElementById('map-point-detail-card');
+    if (!card) return;
+
+    card.style.display = 'block';
+    card.innerHTML = `
+      <div class="point-detail-header">
+        <div>
+          <span class="point-badge ${getRegionBadgeClass(p.region)}" style="margin-bottom: 4px; display: inline-block;">${p.subRegion} · ${p.region}</span>
+          <div class="point-title">${p.name}</div>
+        </div>
+        <button onclick="document.getElementById('map-point-detail-card').style.display='none'" style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;">✕</button>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
+        <div style="width: 70px; height: 70px; border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; border: 1px solid var(--accent-cyan);">
+          <img src="${p.imageUrl || window.EOBO_SAFE_IMG}" alt="${p.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src=window.EOBO_SAFE_IMG;">
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 4px;">주요 출현 어종 (생태 빅데이터):</div>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            ${p.primaryFish.map(f => `<span class="feed-chip" style="color: var(--accent-cyan); font-weight: 700;">🐟 ${f}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-grid" style="margin-bottom: 12px;">
+        <div class="metric-box">
+          <span class="label">적정 수심</span>
+          <span class="val" style="font-size: 11px;">${p.depth}</span>
+        </div>
+        <div class="metric-box">
+          <span class="label">추천 물때</span>
+          <span class="val" style="font-size: 11px;">${p.bestTide}</span>
+        </div>
+        <div class="metric-box">
+          <span class="label">추천 채비/미끼</span>
+          <span class="val" style="font-size: 11px; color: var(--accent-amber);">${p.bait}</span>
+        </div>
+        <div class="metric-box">
+          <span class="label">예상 수온/활성도</span>
+          <span class="val" style="font-size: 11px; color: #34d399;">${p.waterTemp} (★${p.activityStar}.0)</span>
+        </div>
+      </div>
+
+      <p style="font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-bottom: 14px; background: rgba(3,7,18,0.5); padding: 8px 10px; border-radius: var(--radius-sm);">
+        💡 <strong>포인트 특징:</strong> ${p.description}
+      </p>
+
+      <button class="btn-primary" style="width: 100%; font-size: 12px;" onclick="window.eoboScanAtPoint('${p.name}')">
+        📸 ${p.name.split(' ')[0]}에서 잡은 고기 AI 스캔 및 등록하기
+      </button>
+    `;
+  }
+
+  // 특정 포인트에서 바로 스캔하기 연동
+  window.eoboScanAtPoint = (pointName) => {
+    switchTab('scan');
+    const pointInput = document.getElementById('input-point-name');
+    if (pointInput) {
+      pointInput.value = pointName;
+    }
+    showToast(`📍 [${pointName}] 출조 포인트가 조과 등록 정보에 자동 반영되었습니다.`);
+  };
 
   // =========================================================================
   // 8. Modals
