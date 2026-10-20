@@ -1,37 +1,168 @@
 ﻿/**
  * 어보 (EOBO) MVP - 도감 & 조과 데이터 영구 보관소 (Storage Manager)
+ * - 다중 회원가입 / 로그인 / 세션 관리
+ * - 사용자별 조과 등록 및 전국 대물 자랑 피드 관리
+ * - 좋아요(대물 축하 응원) 기능
  */
 
 class EoboStorage {
   constructor() {
     this.storageKey = 'eobo_catch_logs';
-    this.userProfileKey = 'eobo_user_profile';
+    this.usersKey = 'eobo_users_list';
+    this.currentUserKey = 'eobo_current_user';
     this.init();
   }
 
   init() {
-    if (!localStorage.getItem(this.storageKey)) {
-      localStorage.setItem(this.storageKey, JSON.stringify(INITIAL_CATCH_LOGS));
+    // 1. 기본 회원 목록 초기화
+    if (!localStorage.getItem(this.usersKey)) {
+      const defaultUsers = [
+        {
+          id: 'user_pro_angler',
+          username: 'angler1',
+          password: '123',
+          nickname: '바다의 승부사',
+          level: '프로 앵글러',
+          region: '서해',
+          genre: '루어 / 다운샷',
+          avatar: '🎣',
+          points: 75000,
+          badges: ['첫 출조', '넙치 마스터', '서해 개척자']
+        },
+        {
+          id: 'user_lure_master',
+          username: 'angler2',
+          password: '123',
+          nickname: '제주 참돔러버',
+          level: '타이라바 마스터',
+          region: '제주',
+          genre: '선상 타이라바',
+          avatar: '🐠',
+          points: 48000,
+          badges: ['대물 헌터', '제주 정복자']
+        }
+      ];
+      localStorage.setItem(this.usersKey, JSON.stringify(defaultUsers));
     }
 
-    if (!localStorage.getItem(this.userProfileKey)) {
-      const defaultProfile = {
-        nickname: '바다의 승부사',
-        level: '프로 앵글러',
-        points: 75000,
-        badges: ['첫 출조', '넙치 마스터', '서해 개척자'],
-        totalCatches: 2
-      };
-      localStorage.setItem(this.userProfileKey, JSON.stringify(defaultProfile));
+    // 2. 현재 로그인 사용자 세션 (기본은 첫 번째 사용자)
+    if (!localStorage.getItem(this.currentUserKey)) {
+      const users = this.getUsers();
+      localStorage.setItem(this.currentUserKey, JSON.stringify(users[0]));
+    }
+
+    // 3. 초기 조과 피드 데이터
+    if (!localStorage.getItem(this.storageKey)) {
+      const currentUser = this.getCurrentUser();
+      const sampleLogs = INITIAL_CATCH_LOGS.map(log => ({
+        ...log,
+        userId: currentUser ? currentUser.id : 'user_pro_angler',
+        authorNickname: currentUser ? currentUser.nickname : '바다의 승부사',
+        authorAvatar: currentUser ? currentUser.avatar : '🎣',
+        authorLevel: currentUser ? currentUser.level : '프로 앵글러',
+        caption: log.speciesId === 'olive_flounder' ? '오천항 앞바다에서 가을 대광어 손맛 제대로 봤습니다! 미터급 가자!' : '덕적도 여밭 침선 우럭 낚시 대성공!',
+        likesCount: log.speciesId === 'olive_flounder' ? 24 : 15,
+        likedUsers: []
+      }));
+      localStorage.setItem(this.storageKey, JSON.stringify(sampleLogs));
     }
   }
 
+  // --- 회원 관리 (User Authentication) ---
+  getUsers() {
+    try {
+      const data = localStorage.getItem(this.usersKey);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveUsers(users) {
+    localStorage.setItem(this.usersKey, JSON.stringify(users));
+  }
+
+  getCurrentUser() {
+    try {
+      const data = localStorage.getItem(this.currentUserKey);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  setCurrentUser(user) {
+    if (user) {
+      localStorage.setItem(this.currentUserKey, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(this.currentUserKey);
+    }
+  }
+
+  registerUser({ username, password, nickname, region, genre, avatar }) {
+    const users = this.getUsers();
+    if (users.some(u => u.username === username)) {
+      throw new Error('이미 사용 중인 아이디입니다.');
+    }
+    if (users.some(u => u.nickname === nickname)) {
+      throw new Error('이미 사용 중인 닉네임입니다.');
+    }
+
+    const newUser = {
+      id: 'user_' + Date.now(),
+      username,
+      password,
+      nickname: nickname || '열정 앵글러',
+      level: '루키 앵글러',
+      region: region || '서해',
+      genre: genre || '루어낚시',
+      avatar: avatar || '🎣',
+      points: 10000, // 신규 가입 축하 포인트
+      badges: ['신규 앵글러']
+    };
+
+    users.push(newUser);
+    this.saveUsers(users);
+    this.setCurrentUser(newUser);
+    return newUser;
+  }
+
+  loginUser(username, password) {
+    const users = this.getUsers();
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) {
+      throw new Error('아이디 또는 비밀번호가 일치하지 않습니다.');
+    }
+    this.setCurrentUser(user);
+    return user;
+  }
+
+  logoutUser() {
+    this.setCurrentUser(null);
+  }
+
+  addPoints(amount) {
+    const user = this.getCurrentUser();
+    if (!user) return 0;
+    user.points = (user.points || 0) + amount;
+    this.setCurrentUser(user);
+
+    // 전체 회원 목록에서도 업데이트
+    const users = this.getUsers();
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
+      this.saveUsers(users);
+    }
+    return user.points;
+  }
+
+  // --- 조과 데이터 & 피드 관리 ---
   getLogs() {
     try {
       const data = localStorage.getItem(this.storageKey);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load logs:', e);
       return [];
     }
   }
@@ -40,18 +171,32 @@ class EoboStorage {
     localStorage.setItem(this.storageKey, JSON.stringify(logs));
   }
 
-  addLog(log) {
+  addLog(logData) {
     const logs = this.getLogs();
-    log.id = 'log-' + Date.now();
-    log.createdAt = new Date().toISOString();
-    logs.unshift(log);
+    const currentUser = this.getCurrentUser() || {
+      id: 'guest',
+      nickname: '익명 앵글러',
+      avatar: '🎣',
+      level: '자유 앵글러'
+    };
+
+    const newLog = {
+      id: 'log-' + Date.now(),
+      createdAt: new Date().toISOString(),
+      userId: currentUser.id,
+      authorNickname: currentUser.nickname,
+      authorAvatar: currentUser.avatar,
+      authorLevel: currentUser.level,
+      caption: logData.caption || '오늘의 짜릿한 조과를 등록합니다!',
+      likesCount: 0,
+      likedUsers: [],
+      ...logData
+    };
+
+    logs.unshift(newLog); // 최신 조과가 항상 가장 맨 앞에 노출
     this.saveLogs(logs);
 
-    const profile = this.getProfile();
-    profile.totalCatches = logs.length;
-    this.saveProfile(profile);
-
-    return log;
+    return newLog;
   }
 
   deleteLog(id) {
@@ -60,38 +205,43 @@ class EoboStorage {
     this.saveLogs(logs);
   }
 
-  getLogById(id) {
+  toggleLike(logId) {
     const logs = this.getLogs();
-    return logs.find(item => item.id === id);
-  }
+    const currentUser = this.getCurrentUser();
+    const userId = currentUser ? currentUser.id : 'guest';
 
-  getProfile() {
-    try {
-      const data = localStorage.getItem(this.userProfileKey);
-      return data ? JSON.parse(data) : {};
-    } catch (e) {
-      return {};
+    const log = logs.find(l => l.id === logId);
+    if (!log) return null;
+
+    if (!log.likedUsers) log.likedUsers = [];
+    const index = log.likedUsers.indexOf(userId);
+
+    let isLiked = false;
+    if (index === -1) {
+      log.likedUsers.push(userId);
+      log.likesCount = (log.likesCount || 0) + 1;
+      isLiked = true;
+    } else {
+      log.likedUsers.splice(index, 1);
+      log.likesCount = Math.max(0, (log.likesCount || 0) - 1);
+      isLiked = false;
     }
-  }
 
-  saveProfile(profile) {
-    localStorage.setItem(this.userProfileKey, JSON.stringify(profile));
-  }
-
-  addPoints(amount) {
-    const profile = this.getProfile();
-    profile.points = (profile.points || 0) + amount;
-    this.saveProfile(profile);
-    return profile.points;
+    this.saveLogs(logs);
+    return { likesCount: log.likesCount, isLiked };
   }
 
   getStatistics() {
     const logs = this.getLogs();
+    const currentUser = this.getCurrentUser();
+    // 현재 사용자의 조과만 필터링하거나 전체 조과 통계 산출
+    const myLogs = currentUser ? logs.filter(l => l.userId === currentUser.id) : logs;
+
     let maxFish = null;
     const speciesMap = {};
     const regionMap = { '서해': 0, '남해': 0, '동해': 0, '제주': 0, '내수면': 0 };
 
-    logs.forEach(log => {
+    myLogs.forEach(log => {
       if (!maxFish || log.lengthCm > maxFish.lengthCm) {
         maxFish = log;
       }
@@ -104,11 +254,11 @@ class EoboStorage {
     });
 
     const unlockedSpeciesCount = Object.keys(speciesMap).length;
-    const totalSpeciesCount = FISH_DATABASE.length;
+    const totalSpeciesCount = (typeof FISH_DATABASE !== 'undefined') ? FISH_DATABASE.length : 10;
     const completionRate = Math.round((unlockedSpeciesCount / totalSpeciesCount) * 100);
 
     return {
-      totalCount: logs.length,
+      totalCount: myLogs.length,
       maxFish,
       speciesDistribution: speciesMap,
       regionDistribution: regionMap,

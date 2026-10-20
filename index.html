@@ -23,27 +23,33 @@
         <span class="brand-badge">MVP</span>
       </div>
       <div class="header-actions">
+        <!-- User Profile Chip or Login Button -->
+        <div id="header-user-chip" class="user-chip-btn" title="내 계정 정보">
+          <span id="header-user-avatar" class="chip-avatar">🎣</span>
+          <span id="header-user-name" class="chip-name">로그인</span>
+        </div>
         <button id="btn-patent-info" class="patent-badge-btn" title="특허출원 10-2025-0136776">
           <span>📜</span>
-          <span>특허기술</span>
+          <span>특허</span>
         </button>
-        <button id="btn-settings" class="icon-btn" title="설정">⚙️</button>
       </div>
     </header>
 
     <!-- Main Scrollable Content -->
     <main class="app-content">
 
-      <!-- TAB 1: HOME (Dashboard) -->
+      <!-- ===================================================================
+           TAB 1: HOME (Dashboard & Realtime Pride Feed)
+           =================================================================== -->
       <section id="tab-home" class="tab-page active">
         <!-- User Profile Card -->
         <div class="profile-card">
           <div class="profile-header">
             <div class="profile-info">
-              <div class="profile-avatar">🎣</div>
+              <div id="home-profile-avatar" class="profile-avatar">🎣</div>
               <div class="profile-meta">
                 <h3 id="home-profile-name">바다의 승부사 <span style="font-size: 13px;">🌊</span></h3>
-                <span id="home-profile-level">프로 앵글러</span>
+                <span id="home-profile-level">프로 앵글러 · 서해</span>
               </div>
             </div>
             <div class="profile-points">
@@ -54,7 +60,7 @@
           <div class="profile-stats">
             <div class="stat-item">
               <span id="home-stat-catches" class="stat-num">0 수</span>
-              <span class="stat-title">총 등록 조과</span>
+              <span class="stat-title">내 등록 조과</span>
             </div>
             <div class="stat-item">
               <span id="home-stat-max" class="stat-num">0 cm</span>
@@ -76,24 +82,34 @@
           <div class="scan-cta-icon">📸</div>
         </div>
 
-        <!-- Fishing Events Carousel Section -->
+        <!-- =================================================================
+             🔥 실시간 전국 앵글러 대물 자랑 피드 (최신 등록 사진 전면 노출)
+             ================================================================= -->
         <div class="section-head">
+          <h4>🔥 실시간 전국 대물 자랑 피드</h4>
+          <span class="more-link" onclick="document.querySelector('[data-tab=scan]').click()">+ 나도 자랑하기</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-dim); margin: -6px 0 12px 0;">
+          방금 전국 앵글러들이 직접 잡아서 AI 스캔 및 등록한 최신 조과 사진입니다.
+        </p>
+        <div id="home-pride-feed" class="pride-feed-container">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Fishing Events Carousel Section -->
+        <div class="section-head" style="margin-top: 20px;">
           <h4>🏆 진행 중인 특허 챌린지</h4>
           <span class="more-link" onclick="document.querySelector('[data-tab=event]').click()">전체보기 ➔</span>
         </div>
         <div id="home-event-scroll" class="event-scroll-container"></div>
-
-        <!-- Recent Catch Logs Section -->
-        <div class="section-head">
-          <h4>📋 최근 등록된 내 어보</h4>
-          <span class="more-link" onclick="document.querySelector('[data-tab=book]').click()">도감 열기 ➔</span>
-        </div>
-        <div id="home-recent-logs" class="recent-logs-list"></div>
       </section>
 
-      <!-- TAB 2: AI SCAN (Camera & Fish Identification) -->
+      <!-- ===================================================================
+           TAB 2: AI SCAN (Camera, Fish Identification & Detail Registration)
+           =================================================================== -->
       <section id="tab-scan" class="tab-page">
         <div class="scan-container">
+          <!-- Viewfinder Card -->
           <div class="viewfinder-card">
             <div class="reticle-corner reticle-tl"></div>
             <div class="reticle-corner reticle-tr"></div>
@@ -111,6 +127,7 @@
             <img id="scan-preview-img" alt="Scan preview">
           </div>
 
+          <!-- Camera Controls -->
           <div class="camera-controls-row">
             <button id="btn-start-camera" class="btn-primary">
               <span>📷</span> 카메라 켜기
@@ -206,15 +223,38 @@
               <span id="res-cooking-val" style="color: var(--text-muted);">회, 매운탕, 미역국</span>
             </div>
 
+            <!-- =============================================================
+                 조과 상세 정보 입력 폼 (포인트, 미끼, 한줄평)
+                 ============================================================= -->
+            <div class="detail-input-card">
+              <div style="font-size: 12px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 8px;">
+                📝 낚시 조과 상세 정보 입력
+              </div>
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label>📍 포인트 / 낚시터 명</label>
+                <input type="text" id="input-point-name" class="form-input" placeholder="예: 충남 보령 오천항 1호 어초" value="충남 보령 오천항 앞바다">
+              </div>
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label>🪱 사용 미끼 및 채비</label>
+                <input type="text" id="input-bait-name" class="form-input" placeholder="예: 5인치 섀드웜 다운샷, 지렁이" value="5인치 스트레이트 웜 & 다운샷 채비">
+              </div>
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label>💬 대물 자랑 한줄평 (자랑 피드에 공개)</label>
+                <input type="text" id="input-caption" class="form-input" placeholder="예: 바닥 찍자마자 덜컥! 손맛 죽여줍니다!" value="오천항 출조에서 인생 첫 대물 손맛 제대로 봤습니다!">
+              </div>
+            </div>
+
             <!-- Action Button -->
             <button id="btn-register-log" class="action-register-btn">
-              <span>📥</span> 내 어보 도감에 등록하기 (+1,000P)
+              <span>🚀</span> 내 어보 등록 & 메인 피드에 자랑하기 (+1,000P)
             </button>
           </div>
         </div>
       </section>
 
-      <!-- TAB 3: BOOK (Catch Logs & Encyclopedia) -->
+      <!-- ===================================================================
+           TAB 3: BOOK (Catch Logs & Encyclopedia)
+           ================================================================== -->
       <section id="tab-book" class="tab-page">
         <div class="collection-tabs-row">
           <button id="subtab-btn-logs" class="sub-tab-btn active">내 조과 기록</button>
@@ -225,7 +265,9 @@
         <div id="book-encyclopedia-container" class="fish-grid" style="display: none;"></div>
       </section>
 
-      <!-- TAB 4: EVENT (Patent Reward & Challenges) -->
+      <!-- ===================================================================
+           TAB 4: EVENT (Patent Reward & Challenges)
+           =================================================================== -->
       <section id="tab-event" class="tab-page">
         <div class="section-head">
           <h4>🏆 지자체 & 스폰서 낚시 챌린지</h4>
@@ -237,7 +279,9 @@
         <div id="event-list-container"></div>
       </section>
 
-      <!-- TAB 5: MAP & ECOLOGY (Statistics & Bio Monitoring) -->
+      <!-- ===================================================================
+           TAB 5: MAP & ECOLOGY (Statistics & Bio Monitoring)
+           =================================================================== -->
       <section id="tab-map" class="tab-page">
         <div class="section-head">
           <h4>🗺️ 전국 연안 어종 생태 지도</h4>

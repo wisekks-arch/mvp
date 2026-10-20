@@ -1,5 +1,9 @@
-﻿/**
+/**
  * 어보 (EOBO) MVP - 메인 애플리케이션 컨트롤러
+ * - 다중 회원가입 / 로그인 / 프로필 관리
+ * - AI 스캔 후 어종 및 상세 조과 정보(포인트, 미끼, 한줄평) 등록
+ * - 메인 페이지 최신 등록 조과 사진 & 대물 자랑 피드 실시간 렌더링
+ * - 좋아요(응원하기) 인터랙션
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7,8 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentTab: 'home',
     cameraStream: null,
     currentScanResult: null,
-    selectedSampleFishId: null,
-    currentFilter: 'all'
+    selectedAvatar: '🎣'
   };
 
   const tabPages = document.querySelectorAll('.tab-page');
@@ -21,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiResultPanel = document.getElementById('ai-result-panel');
   const toast = document.getElementById('toast-msg');
 
+  // =========================================================================
+  // 1. Navigation Controller
+  // =========================================================================
   function switchTab(tabId) {
     state.currentTab = tabId;
 
@@ -64,6 +70,220 @@ document.addEventListener('DOMContentLoaded', () => {
     homeScanCta.addEventListener('click', () => switchTab('scan'));
   }
 
+  // =========================================================================
+  // 2. User Authentication (회원가입 / 로그인 / 프로필 관리)
+  // =========================================================================
+  const headerUserChip = document.getElementById('header-user-chip');
+  if (headerUserChip) {
+    headerUserChip.addEventListener('click', () => {
+      const currentUser = window.eoboStorage.getCurrentUser();
+      if (currentUser) {
+        openUserProfileModal(currentUser);
+      } else {
+        openAuthModal('login');
+      }
+    });
+  }
+
+  function updateHeaderUserUI() {
+    const user = window.eoboStorage.getCurrentUser();
+    const avatarEl = document.getElementById('header-user-avatar');
+    const nameEl = document.getElementById('header-user-name');
+    if (user) {
+      if (avatarEl) avatarEl.innerText = user.avatar || '🎣';
+      if (nameEl) nameEl.innerText = user.nickname || '앵글러';
+    } else {
+      if (avatarEl) avatarEl.innerText = '👤';
+      if (nameEl) nameEl.innerText = '로그인';
+    }
+  }
+
+  function openAuthModal(defaultMode = 'login') {
+    state.selectedAvatar = '🎣';
+    const authHtml = `
+      <div class="auth-tabs">
+        <button id="auth-tab-login" class="auth-tab-btn ${defaultMode === 'login' ? 'active' : ''}" onclick="window.eoboSwitchAuthTab('login')">로그인</button>
+        <button id="auth-tab-signup" class="auth-tab-btn ${defaultMode === 'signup' ? 'active' : ''}" onclick="window.eoboSwitchAuthTab('signup')">간편 회원가입</button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="auth-login-form" style="display: ${defaultMode === 'login' ? 'block' : 'none'};">
+        <div class="form-group">
+          <label>아이디</label>
+          <input type="text" id="login-username" class="form-input" placeholder="아이디 입력 (체험: angler1)" value="angler1">
+        </div>
+        <div class="form-group">
+          <label>비밀번호</label>
+          <input type="password" id="login-password" class="form-input" placeholder="비밀번호 (체험: 123)" value="123">
+        </div>
+        <button class="btn-primary" style="width: 100%; margin-top: 14px;" onclick="window.eoboHandleLogin()">
+          🎣 로그인하기
+        </button>
+        <div style="text-align: center; margin-top: 10px; font-size: 11px; color: var(--text-muted);">
+          아직 계정이 없으신가요? <a href="javascript:void(0)" onclick="window.eoboSwitchAuthTab('signup')" style="color: var(--accent-cyan); font-weight: 700;">회원가입</a>
+        </div>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="auth-signup-form" style="display: ${defaultMode === 'signup' ? 'block' : 'none'};">
+        <div class="form-group">
+          <label>캐릭터 아바타 선택</label>
+          <div class="avatar-selector-row">
+            <button class="avatar-choice-btn selected" onclick="window.eoboPickAvatar(this, '🎣')">🎣</button>
+            <button class="avatar-choice-btn" onclick="window.eoboPickAvatar(this, '🐟')">🐟</button>
+            <button class="avatar-choice-btn" onclick="window.eoboPickAvatar(this, '🦈')">🦈</button>
+            <button class="avatar-choice-btn" onclick="window.eoboPickAvatar(this, '🐠')">🐠</button>
+            <button class="avatar-choice-btn" onclick="window.eoboPickAvatar(this, '🐡')">🐡</button>
+            <button class="avatar-choice-btn" onclick="window.eoboPickAvatar(this, '⛵')">⛵</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>아이디</label>
+          <input type="text" id="signup-username" class="form-input" placeholder="아이디 (영문/숫자)">
+        </div>
+        <div class="form-group">
+          <label>비밀번호</label>
+          <input type="password" id="signup-password" class="form-input" placeholder="비밀번호">
+        </div>
+        <div class="form-group">
+          <label>앵글러 닉네임</label>
+          <input type="text" id="signup-nickname" class="form-input" placeholder="예: 서해 대물사냥꾼">
+        </div>
+        <div class="form-group">
+          <label>주 활동 지역</label>
+          <select id="signup-region" class="form-input">
+            <option value="서해">서해 (인천/태안/보령/군산)</option>
+            <option value="남해">남해 (여수/통영/거제/부산)</option>
+            <option value="동해">동해 (강릉/속초/포항)</option>
+            <option value="제주">제주 전역</option>
+            <option value="민물">민물 (전국 강/호수/수로)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>선호 낚시 장르</label>
+          <select id="signup-genre" class="form-input">
+            <option value="루어낚시">루어 / 다운샷 / 지깅</option>
+            <option value="바다 찌낚시">바다 찌낚시 / 갯바위</option>
+            <option value="원투낚시">원투 / 처박기 낚시</option>
+            <option value="선상낚시">선상 배낚시 / 침선</option>
+            <option value="민물 붕어낚시">민물 붕어 찌올림</option>
+          </select>
+        </div>
+        <button class="btn-primary" style="width: 100%; margin-top: 14px;" onclick="window.eoboHandleSignup()">
+          ✨ 가입하고 10,000P 받기
+        </button>
+      </div>
+    `;
+    openModal(authHtml);
+  }
+
+  window.eoboSwitchAuthTab = (mode) => {
+    document.getElementById('auth-tab-login').classList.toggle('active', mode === 'login');
+    document.getElementById('auth-tab-signup').classList.toggle('active', mode === 'signup');
+    document.getElementById('auth-login-form').style.display = mode === 'login' ? 'block' : 'none';
+    document.getElementById('auth-signup-form').style.display = mode === 'signup' ? 'block' : 'none';
+  };
+
+  window.eoboPickAvatar = (btn, avatar) => {
+    document.querySelectorAll('.avatar-choice-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.selectedAvatar = avatar;
+  };
+
+  window.eoboHandleLogin = () => {
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value.trim();
+    if (!u || !p) {
+      alert('아이디와 비밀번호를 입력해주세요.');
+      return;
+    }
+    try {
+      const user = window.eoboStorage.loginUser(u, p);
+      closeModal();
+      showToast(`환영합니다, ${user.nickname} 앵글러님! 🎣`);
+      updateHeaderUserUI();
+      renderHomeTab();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  window.eoboHandleSignup = () => {
+    const username = document.getElementById('signup-username').value.trim();
+    const password = document.getElementById('signup-password').value.trim();
+    const nickname = document.getElementById('signup-nickname').value.trim();
+    const region = document.getElementById('signup-region').value;
+    const genre = document.getElementById('signup-genre').value;
+    const avatar = state.selectedAvatar || '🎣';
+
+    if (!username || !password || !nickname) {
+      alert('아이디, 비밀번호, 닉네임을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      const user = window.eoboStorage.registerUser({
+        username,
+        password,
+        nickname,
+        region,
+        genre,
+        avatar
+      });
+      closeModal();
+      showToast(`🎉 가입 축하! ${user.nickname}님께 10,000P 지급 완료!`);
+      updateHeaderUserUI();
+      renderHomeTab();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  function openUserProfileModal(user) {
+    const profileHtml = `
+      <div style="text-align: center; margin-bottom: 16px;">
+        <div style="width: 60px; height: 60px; border-radius: var(--radius-full); background: #0f172a; border: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 8px auto;">
+          ${user.avatar}
+        </div>
+        <h3 style="font-size: 18px; font-weight: 800;">${user.nickname}</h3>
+        <span style="font-size: 11px; color: var(--primary-light); font-weight: 600;">${user.level} · ${user.region}</span>
+      </div>
+
+      <div class="metric-grid" style="margin-bottom: 14px;">
+        <div class="metric-box">
+          <span class="label">보유 포인트</span>
+          <span class="val" style="color: #fbbf24;">${(user.points || 0).toLocaleString()} P</span>
+        </div>
+        <div class="metric-box">
+          <span class="label">선호 장르</span>
+          <span class="val" style="font-size: 12px;">${user.genre || '루어낚시'}</span>
+        </div>
+      </div>
+
+      <div style="background: rgba(3, 7, 18, 0.4); padding: 10px; border-radius: var(--radius-md); font-size: 11px; margin-bottom: 16px;">
+        <div style="color: var(--text-dim); margin-bottom: 4px;">계정 아이디</div>
+        <div style="font-weight: 600; color: var(--text-main);">${user.username}</div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-secondary" style="flex: 1;" onclick="window.eoboLogout()">🚪 로그아웃</button>
+        <button class="btn-primary" style="flex: 1;" onclick="window.eoboCloseModal()">확인</button>
+      </div>
+    `;
+    openModal(profileHtml);
+  }
+
+  window.eoboLogout = () => {
+    window.eoboStorage.logoutUser();
+    closeModal();
+    showToast('로그아웃 되었습니다.');
+    updateHeaderUserUI();
+    renderHomeTab();
+  };
+
+  // =========================================================================
+  // 3. AI Vision Scan & Camera Handling
+  // =========================================================================
   const btnStartCamera = document.getElementById('btn-start-camera');
   const btnSelectPhoto = document.getElementById('btn-select-photo');
   const btnCapture = document.getElementById('btn-capture-scan');
@@ -109,8 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btnCapture) btnCapture.style.display = 'flex';
       showToast('카메라가 연결되었습니다. 물고기를 화면 중앙에 맞춰주세요.');
     } catch (err) {
-      console.warn('카메라 접근 실패:', err);
-      showToast('카메라 권한이 없거나 지원되지 않아 샘플 또는 파일 업로드를 이용합니다.');
+      showToast('카메라 권한이 없거나 지원되지 않아 샘플 어종 빠른 테스트를 시작합니다.');
       triggerSampleScan('olive_flounder');
     }
   }
@@ -249,12 +468,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 조과 상세정보와 함께 등록 및 메인 피드에 자랑하기
   const btnRegisterLog = document.getElementById('btn-register-log');
   if (btnRegisterLog) {
     btnRegisterLog.addEventListener('click', () => {
       if (!state.currentScanResult) return;
       const res = state.currentScanResult;
       const fish = res.fish;
+
+      const pointName = document.getElementById('input-point-name').value.trim() || res.metadata.locationName;
+      const baitName = document.getElementById('input-bait-name').value.trim() || '웜 루어 채비';
+      const captionText = document.getElementById('input-caption').value.trim() || `${fish.name} ${res.lengthCm}cm 짜릿한 손맛 보고 갑니다!`;
 
       const newCatchLog = {
         speciesId: fish.id,
@@ -266,12 +490,13 @@ document.addEventListener('DOMContentLoaded', () => {
         date: res.metadata.date,
         time: res.metadata.time,
         region: res.metadata.region,
-        locationName: res.metadata.locationName,
+        locationName: pointName,
         latitude: res.metadata.latitude,
         longitude: res.metadata.longitude,
         tide: res.metadata.tide,
         weather: res.metadata.weather,
-        bait: '루어 웜 & 지그헤드',
+        bait: baitName,
+        caption: captionText,
         imageUrl: res.capturedImage || fish.imageUrl,
         confidence: res.confidence,
         hashValid: true,
@@ -281,27 +506,38 @@ document.addEventListener('DOMContentLoaded', () => {
       window.eoboStorage.addLog(newCatchLog);
       window.eoboStorage.addPoints(1000);
 
-      showToast(`🎉 ${fish.name} (${res.lengthCm}cm) 어보 도감에 등록 완료! (+1,000P)`);
+      showToast(`🎉 ${fish.name} (${res.lengthCm}cm) 메인 자랑 피드에 등록되었습니다! (+1,000P)`);
 
       setTimeout(() => {
-        switchTab('book');
-      }, 1000);
+        switchTab('home');
+      }, 800);
     });
   }
 
+  // =========================================================================
+  // 4. Home Tab Rendering & Realtime Pride Feed (자랑 피드)
+  // =========================================================================
   function renderHomeTab() {
-    const profile = window.eoboStorage.getProfile();
+    updateHeaderUserUI();
+    const currentUser = window.eoboStorage.getCurrentUser();
     const stats = window.eoboStorage.getStatistics();
     const logs = window.eoboStorage.getLogs();
 
-    document.getElementById('home-profile-name').innerText = profile.nickname || '조사님';
-    document.getElementById('home-profile-level').innerText = profile.level || '초보 앵글러';
-    document.getElementById('home-profile-points').innerText = (profile.points || 0).toLocaleString() + ' P';
+    if (currentUser) {
+      document.getElementById('home-profile-avatar').innerText = currentUser.avatar || '🎣';
+      document.getElementById('home-profile-name').innerHTML = `${currentUser.nickname} <span style="font-size: 13px;">🌊</span>`;
+      document.getElementById('home-profile-level').innerText = `${currentUser.level} · ${currentUser.region}`;
+      document.getElementById('home-profile-points').innerText = (currentUser.points || 0).toLocaleString() + ' P';
+    }
 
     document.getElementById('home-stat-catches').innerText = `${stats.totalCount} 수`;
     document.getElementById('home-stat-max').innerText = stats.maxFish ? `${stats.maxFish.lengthCm}cm` : '0cm';
     document.getElementById('home-stat-rate').innerText = `${stats.completionRate}%`;
 
+    // 실시간 전국 대물 자랑 피드
+    renderPrideFeed(logs);
+
+    // 이벤트 횡스크롤
     const eventContainer = document.getElementById('home-event-scroll');
     if (eventContainer) {
       eventContainer.innerHTML = '';
@@ -319,49 +555,100 @@ document.addEventListener('DOMContentLoaded', () => {
             <span>참여하기 ➔</span>
           </div>
         `;
-        card.addEventListener('click', () => {
-          switchTab('event');
-        });
+        card.addEventListener('click', () => switchTab('event'));
         eventContainer.appendChild(card);
-      });
-    }
-
-    const recentList = document.getElementById('home-recent-logs');
-    if (recentList) {
-      recentList.innerHTML = '';
-      if (logs.length === 0) {
-        recentList.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 20px;">아직 등록된 조과가 없습니다. 첫 낚시를 기록해 보세요!</div>';
-        return;
-      }
-      logs.slice(0, 4).forEach(log => {
-        const item = document.createElement('div');
-        item.className = 'log-item-card';
-        item.innerHTML = `
-          <div class="log-img-box">
-            <img src="${log.imageUrl}" alt="${log.speciesName}" onerror="this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=300&q=80'">
-          </div>
-          <div class="log-content">
-            <div class="log-top-row">
-              <span class="log-species-title">${log.speciesName}</span>
-              <span class="log-size-badge">${log.lengthCm} cm</span>
-            </div>
-            <div class="log-sub-info">
-              <span>🗓️ ${log.date}</span>
-              <span>📍 ${log.region}</span>
-              <span>⏳ ${log.estimatedAge}</span>
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <span class="log-meta-tag">AI ${log.confidence}%</span>
-              <span class="log-meta-tag">🌊 ${log.tide || '사리'}</span>
-            </div>
-          </div>
-        `;
-        item.addEventListener('click', () => openFishCertModal(log));
-        recentList.appendChild(item);
       });
     }
   }
 
+  function renderPrideFeed(logs) {
+    const feedContainer = document.getElementById('home-pride-feed');
+    if (!feedContainer) return;
+
+    feedContainer.innerHTML = '';
+    if (!logs || logs.length === 0) {
+      feedContainer.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 30px;">아직 등록된 조과가 없습니다. 첫 대물을 자랑해 보세요!</div>';
+      return;
+    }
+
+    const currentUserId = window.eoboStorage.getCurrentUser() ? window.eoboStorage.getCurrentUser().id : null;
+
+    logs.forEach(log => {
+      const isLiked = log.likedUsers && currentUserId && log.likedUsers.includes(currentUserId);
+      const card = document.createElement('div');
+      card.className = 'feed-card';
+
+      card.innerHTML = `
+        <div class="feed-header">
+          <div class="feed-author-wrap">
+            <div class="feed-author-avatar">${log.authorAvatar || '🎣'}</div>
+            <div>
+              <div class="feed-author-name">
+                ${log.authorNickname || '자유 앵글러'}
+                <span style="font-size: 10px; color: var(--primary-light); font-weight: 500;">(${log.authorLevel || '조사'})</span>
+              </div>
+              <div class="feed-author-meta">📍 ${log.locationName || log.region} · 🗓️ ${log.date} ${log.time || ''}</div>
+            </div>
+          </div>
+          <span class="feed-date-badge">🌊 ${log.tide || '7물'}</span>
+        </div>
+
+        <div class="feed-photo-wrap" onclick="window.eoboOpenCertById('${log.id}')">
+          <img src="${log.imageUrl}" alt="${log.speciesName}" onerror="this.src='https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80'">
+          <div class="feed-photo-overlay">
+            <span class="feed-species-tag">${log.speciesName} (${log.estimatedAge})</span>
+            <span class="feed-size-badge">${log.lengthCm} cm</span>
+          </div>
+        </div>
+
+        <div class="feed-body">
+          <div class="feed-caption-bubble">
+            💬 <strong>${log.authorNickname}:</strong> ${log.caption || '오늘의 짜릿한 대물 조과를 기록합니다!'}
+          </div>
+
+          <div class="feed-info-tags">
+            <span class="feed-chip">🪱 ${log.bait || '웜 루어 채비'}</span>
+            <span class="feed-chip">🤖 AI 일치율 ${log.confidence}%</span>
+            <span class="feed-chip">⚖️ ${log.weightKg || '0.7'}kg</span>
+          </div>
+
+          <div class="feed-action-bar">
+            <button class="btn-like ${isLiked ? 'liked' : ''}" onclick="window.eoboLikeFeed(this, '${log.id}')">
+              <span class="heart-icon">${isLiked ? '❤️' : '🤍'}</span>
+              <span>대물 축하해요 (${log.likesCount || 0})</span>
+            </button>
+            <button class="btn-share-cert" onclick="window.eoboOpenCertById('${log.id}')">
+              <span>📜 피싱 인증 카드</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      feedContainer.appendChild(card);
+    });
+  }
+
+  window.eoboLikeFeed = (btn, logId) => {
+    const res = window.eoboStorage.toggleLike(logId);
+    if (!res) return;
+
+    btn.classList.toggle('liked', res.isLiked);
+    btn.querySelector('.heart-icon').innerText = res.isLiked ? '❤️' : '🤍';
+    btn.querySelector('span:last-child').innerText = `대물 축하해요 (${res.likesCount})`;
+
+    if (res.isLiked) {
+      showToast('🎉 대물 축하 응원을 보냈습니다! ❤️');
+    }
+  };
+
+  window.eoboOpenCertById = (logId) => {
+    const log = window.eoboStorage.getLogById(logId);
+    if (log) openFishCertModal(log);
+  };
+
+  // =========================================================================
+  // 5. Book / Collection Tab Rendering
+  // =========================================================================
   const subTabLogs = document.getElementById('subtab-btn-logs');
   const subTabAll = document.getElementById('subtab-btn-all');
   const logsContainer = document.getElementById('book-logs-container');
@@ -409,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span>📍 ${log.locationName || log.region}</span>
               </div>
               <div style="font-size: 10px; color: var(--primary-light);">
-                추정 나이: <strong>${log.estimatedAge}</strong> | 무게: <strong>${log.weightKg || '0.7'}kg</strong>
+                작성자: <strong>${log.authorNickname || '나'}</strong> · 나이: <strong>${log.estimatedAge}</strong>
               </div>
             </div>
           `;
@@ -442,6 +729,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // =========================================================================
+  // 6. Patent Event Tab Rendering
+  // =========================================================================
   function renderEventTab() {
     const eventListContainer = document.getElementById('event-list-container');
     if (!eventListContainer) return;
@@ -512,6 +802,9 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerSampleScan(speciesId);
   };
 
+  // =========================================================================
+  // 7. Map & Ecology Tab
+  // =========================================================================
   function renderMapTab() {
     const stats = window.eoboStorage.getStatistics();
     const regionSummary = document.getElementById('map-region-summary');
@@ -527,6 +820,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // =========================================================================
+  // 8. Modals
+  // =========================================================================
   const modalOverlay = document.getElementById('modal-overlay');
   const modalBody = document.getElementById('modal-body-container');
   const modalClose = document.getElementById('modal-close-btn');
@@ -564,9 +860,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <div><span style="font-size: 10px; color: var(--text-dim); display: block;">추정 나이</span><span class="cert-metric-num" style="font-size: 16px;">${log.estimatedAge}</span></div>
         </div>
         <div class="cert-meta-info">
-          <div>📍 <strong>위치:</strong> ${log.locationName || log.region} (${log.latitude ? log.latitude.toFixed(2) : '36.38'}°N)</div>
+          <div>👤 <strong>조사:</strong> ${log.authorNickname || '자유 앵글러'} (${log.authorLevel || '프로'})</div>
+          <div>📍 <strong>위치:</strong> ${log.locationName || log.region}</div>
+          <div>🪱 <strong>채비:</strong> ${log.bait || '루어 웜'}</div>
           <div>🗓️ <strong>일시:</strong> ${log.date} ${log.time || '10:00'} · 🌊 ${log.tide || '7물'}</div>
-          <div>🤖 <strong>AI 판별 신뢰도:</strong> ${log.confidence}% (SHA-256 검증 완료)</div>
+          <div>🤖 <strong>AI 판별 신뢰도:</strong> ${log.confidence}% (SHA-256 검증 통과)</div>
         </div>
       </div>
       <div style="display: flex; gap: 8px;">
@@ -658,34 +956,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal(patentHtml);
     });
   }
-
-  const btnSettings = document.getElementById('btn-settings');
-  if (btnSettings) {
-    btnSettings.addEventListener('click', () => {
-      const currentApiKey = window.eoboAI.getApiKey();
-      const settingsHtml = `
-        <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 12px;">⚙️ 환경 설정</h3>
-        <div class="form-group">
-          <label>Google Gemini API Key (선택사항)</label>
-          <input type="password" id="input-gemini-key" class="form-input" placeholder="AI Studio API Key 입력" value="${currentApiKey}">
-          <p style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">
-            * 키를 입력하지 않아도 내장 고정밀 로컬 비전 엔진으로 100% 정상 작동합니다. 키를 입력하시면 임의의 모든 사진을 Google Gemini 멀티모달 비전 AI가 실시간으로 분석합니다.
-          </p>
-        </div>
-        <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="window.eoboSaveSettings()">저장하기</button>
-      `;
-      openModal(settingsHtml);
-    });
-  }
-
-  window.eoboSaveSettings = () => {
-    const keyInput = document.getElementById('input-gemini-key');
-    if (keyInput) {
-      window.eoboAI.setApiKey(keyInput.value);
-      showToast('설정이 저장되었습니다.');
-      closeModal();
-    }
-  };
 
   window.eoboCloseModal = closeModal;
 
